@@ -234,7 +234,7 @@ export function renderLogoFrame(
   for (let y = 1; y <= LOGO_ROWS; y++) {
     let line = "";
     for (let x = 1; x <= LOGO_COLS; x++) {
-      const cellColor = logoCellColor(frame, y, x, gradientOn, stripeEnabled);
+      const cellColor = logoCellColor(frame, y, x, gradientOn, stripeEnabled, logoColorKey);
       line += colorCell(cellColor, logoColorKey);
     }
     lines.push(line);

@@ -10,8 +10,6 @@ import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import type { HeaderConfig } from "../config.ts";
 import {
   LAST_FRAME_INDEX,
-  LOGO_PIXEL_WIDTH,
-  LOGO_ROWS,
   precomputeFrames,
 } from "./logo.ts";
 import { collectStats, renderInfoBar } from "./info-bar.ts";
@@ -111,8 +109,6 @@ class PiTuiHeader implements Component {
   private readonly precomputedFrames: string[][];
   private readonly stats;
   private readonly tipCommands: string[];
-  private cachedInfoRows: Record<number, string> | null = null;
-  private cachedInfoWidth = -1;
 
   constructor(
     private readonly pi: ExtensionAPI,

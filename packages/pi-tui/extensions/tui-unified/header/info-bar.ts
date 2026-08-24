@@ -9,6 +9,7 @@ import { VERSION } from "@earendil-works/pi-coding-agent";
 import type { ExtensionAPI, ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import type { HeaderConfig } from "../config.ts";
+import { CMAP } from "./logo.ts";
 
 /* ── Stats collection ── */
 
@@ -96,17 +97,6 @@ export function renderInfoBar(
 /* ── Helpers ── */
 
 function getCmapAnsi(colorKey: string): string {
-  const CMAP: Record<string, string> = {
-    a: "38;2;217;119;87",
-    r: "31",
-    o: "38;5;208",
-    y: "38;5;226",
-    g: "38;2;20;180;20",
-    w: "38;5;15",
-    b: "38;2;40;130;220",
-    p: "38;5;129",
-    c: "38;2;251;73;52",
-  };
   return CMAP[colorKey] ?? "34";
 }
 
