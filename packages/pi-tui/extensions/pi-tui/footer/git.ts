@@ -80,7 +80,6 @@ export async function readGitStatus(
 
   const status = emptyGitStatus();
   const lines = stdout.split("\n");
-  let stashSupported = true;
 
   for (const line of lines) {
     if (line.startsWith("## ")) {
@@ -112,7 +111,6 @@ export async function readGitStatus(
       const stashCount = parseInt(line.slice(8).trim(), 10);
       if (!Number.isNaN(stashCount)) {
         status.stashed = stashCount;
-        stashSupported = true;
       }
       continue;
     }
@@ -134,7 +132,6 @@ export async function readGitStatus(
 
   if (
     options.readCounts !== false &&
-    stashSupported &&
     status.stashed === 0 &&
     !stdout.includes("# stash")
   ) {

@@ -21,7 +21,6 @@ import {
   type SegmentContext,
   type PrioritizedSegment,
   fitSegmentsByPriority,
-  alignRight,
   renderCwd,
   renderCwdCompact,
   renderGit,

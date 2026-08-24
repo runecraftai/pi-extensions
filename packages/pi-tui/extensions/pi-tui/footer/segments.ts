@@ -534,10 +534,6 @@ export function renderExtStatus(
   if (statuses.length === 0) return [];
 
   const separator = ` ${theme.fg("dim", "|")} `;
-  const statusText = statuses
-    .map((status) => theme.fg("muted", status))
-    .join(separator);
-  const line = `${theme.fg("mdLink", glyphs.extensions)} ${statusText}`;
 
   // Simple line wrapping for long status lines
   const result: string[] = [];
