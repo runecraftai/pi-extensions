@@ -9,7 +9,8 @@
  *   - Compact:    🧠 36%
  */
 
-import type { Theme, ThemeColor } from "@earendil-works/pi-coding-agent";
+import type { Theme } from "@earendil-works/pi-coding-agent";
+import { stressColor } from "./segments.ts";
 
 /** Zone thresholds as percentages of context window. */
 const WARN = 40;
@@ -17,15 +18,7 @@ const DANGER = 70;
 
 const DEFAULT_BAR_LEN = 16;
 
-function stressColor(pct: number): ThemeColor {
-  if (pct >= DANGER) return "error";
-  if (pct >= WARN) return "warning";
-  return "accent";
-}
 
-function barColor(pct: number): ThemeColor {
-  return stressColor(pct);
-}
 
 interface ZoneInfo {
   icon: string;
@@ -54,7 +47,7 @@ export function renderContextBar(
 
   const filled = Math.max(0, Math.min(barWidth, Math.round((pct / 100) * barWidth)));
   const empty = barWidth - filled;
-  const color = barColor(pct);
+  const color = stressColor(pct);
   const z = zone(pct);
 
   // Zone boundary positions in the bar

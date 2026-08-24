@@ -170,6 +170,7 @@ interface PiTuiFooterOptions {
   state: FooterState;
   requestRender: () => void;
   scheduleGitRefresh: () => void;
+  iconMode: string;
 }
 
 class PiTuiFooter implements Component {
@@ -193,7 +194,7 @@ class PiTuiFooter implements Component {
     if (width <= 0) return [""];
 
     const { theme, config, state, ctx, footerData } = this.options;
-    const glyphs = resolveGlyphs(this.options.config ? "auto" : "auto");
+    const glyphs = resolveGlyphs(this.options.iconMode);
     const totals = getUsageTotals(ctx);
 
     const modelMeta = {
@@ -293,6 +294,7 @@ export function installFooter(
   config: FooterConfig,
   state: FooterState,
   hooks: FooterHooks,
+  iconMode: string = "auto",
 ): () => void {
   let footer: PiTuiFooter | undefined;
 
@@ -311,6 +313,7 @@ export function installFooter(
       state,
       requestRender: () => tui.requestRender(),
       scheduleGitRefresh: hooks.scheduleGitRefresh,
+      iconMode,
     });
 
     return {

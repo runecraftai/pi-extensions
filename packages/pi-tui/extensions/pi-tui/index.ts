@@ -53,7 +53,7 @@ export default function (pi: ExtensionAPI) {
       scheduleGitRefresh: () => {
         void scheduleGitRefresh(ctx);
       },
-    });
+    }, config.icons.mode);
   };
 
   const uninstallFooter = () => {

@@ -90,13 +90,19 @@ export async function readGitStatus(
         status.branch = undefined;
         status.commit = { oid: null, detached: true, tag: null };
       } else {
+        // Handle formats: 'main', 'main...origin/main', 'main [ahead 3]', 'main [behind 2]', 'main [ahead 3, behind 2]'
         const branchMatch = branchPart.match(
-          /^(\S+?)(?:\.\.\.(\S+))?(?:\s+\[(ahead|behind) (\d+)\])?$/,
+          /^(\S+?)(?:\.\.\.(\S+))?(?:\s+\[(.+?)\])?$/,
         );
         if (branchMatch) {
           status.branch = branchMatch[1];
-          if (branchMatch[3] === "ahead") status.ahead = parseInt(branchMatch[4]!, 10);
-          if (branchMatch[3] === "behind") status.behind = parseInt(branchMatch[4]!, 10);
+          const trackingInfo = branchMatch[3];
+          if (trackingInfo) {
+            const aheadMatch = trackingInfo.match(/ahead (\d+)/);
+            const behindMatch = trackingInfo.match(/behind (\d+)/);
+            if (aheadMatch?.[1]) status.ahead = parseInt(aheadMatch[1], 10);
+            if (behindMatch?.[1]) status.behind = parseInt(behindMatch[1], 10);
+          }
         }
       }
       continue;

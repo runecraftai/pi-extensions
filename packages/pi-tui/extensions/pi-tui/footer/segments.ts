@@ -5,6 +5,7 @@
  * Segments are composed by the footer's layout engine using priority-based fitting.
  */
 
+import { isAbsolute, relative, resolve, sep } from "node:path";
 import type { ExtensionContext, Theme, ThemeColor } from "@earendil-works/pi-coding-agent";
 import {
   truncateToWidth,
@@ -142,12 +143,11 @@ export function stripAnsi(text: string): string {
 export function formatCwd(cwd: string): string {
   const home = process.env.HOME || process.env.USERPROFILE;
   if (!home) return cwd;
-  const resolvedCwd = require("node:path").resolve(cwd);
-  const resolvedHome = require("node:path").resolve(home);
-  const rel = require("node:path").relative(resolvedHome, resolvedCwd);
-  const sep = require("node:path").sep;
+  const resolvedCwd = resolve(cwd);
+  const resolvedHome = resolve(home);
+  const rel = relative(resolvedHome, resolvedCwd);
   const insideHome =
-    rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !require("node:path").isAbsolute(rel));
+    rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
   if (!insideHome) return cwd;
   return rel === "" ? "~" : `~${sep}${rel}`;
 }
@@ -452,15 +452,6 @@ export function renderGit(seg: SegmentContext): string {
   }
 
   return parts.join(" ");
-}
-
-/** Runtime — detected runtime symbol + version. */
-export function renderRuntime(seg: SegmentContext): string {
-  const { theme, ctx, config } = seg;
-  const runtime = ctx.model?.reasoning ? "reasoning" : undefined;
-  // Runtime detection is handled externally; just render the icon for now
-  // The actual runtime info is injected via state
-  return "";
 }
 
 /** Context bar — visual context usage bar with zone dividers. */
