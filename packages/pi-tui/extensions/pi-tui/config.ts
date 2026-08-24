@@ -1,7 +1,7 @@
 /**
  * pi-tui config schema, load/save/defaults.
  *
- * Config file: ~/.pi/agent/tui-unified.json
+ * Config file: ~/.pi/agent/pi-tui.json
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
@@ -43,7 +43,7 @@ export interface EditorConfig {
   roundedBorders: boolean;
 }
 
-export interface TuiUnifiedConfig {
+export interface PiTuiConfig {
   enabled: boolean;
   header: HeaderConfig;
   footer: FooterConfig;
@@ -87,7 +87,7 @@ const DEFAULT_EDITOR: EditorConfig = {
   roundedBorders: true,
 };
 
-export const DEFAULT_CONFIG: TuiUnifiedConfig = {
+export const DEFAULT_CONFIG: PiTuiConfig = {
   enabled: true,
   header: structuredClone(DEFAULT_HEADER),
   footer: structuredClone(DEFAULT_FOOTER),
@@ -99,7 +99,7 @@ export const DEFAULT_CONFIG: TuiUnifiedConfig = {
 /* ── Config path ── */
 
 export function getConfigPath(): string {
-  return join(getAgentDir(), "tui-unified.json");
+  return join(getAgentDir(), "pi-tui.json");
 }
 
 /* ── Deep merge ── */
@@ -134,7 +134,7 @@ function deepMerge<T>(base: T, override: unknown): T {
 
 /* ── Load / Save ── */
 
-export function loadConfig(): TuiUnifiedConfig {
+export function loadConfig(): PiTuiConfig {
   const path = getConfigPath();
   if (!existsSync(path)) {
     return structuredClone(DEFAULT_CONFIG);
@@ -149,7 +149,7 @@ export function loadConfig(): TuiUnifiedConfig {
   }
 }
 
-export function saveConfig(config: TuiUnifiedConfig): void {
+export function saveConfig(config: PiTuiConfig): void {
   const path = getConfigPath();
   try {
     const agentDir = getAgentDir();

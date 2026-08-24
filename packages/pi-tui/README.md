@@ -1,13 +1,13 @@
 # @runecraft/pi-tui
 
-Unified, customizable TUI extension for [pi](https://pi.dev) — header, footer, editor, and context view in one configurable package.
+Customizable TUI extension for [pi](https://pi.dev) — header, footer, editor, and context view in one configurable package.
 
 ## Phase 1 Features
 
 - **Animated Logo** — 14-frame animation with 9-color palette, IBM stripes, and Minecraft gradient support
 - **Info Bar** — Displays pi version, model, thinking effort, and system stats
 - **Tips Panel** — Random command suggestions to improve discoverability
-- **Config System** — JSON schema with load/save/defaults at `~/.pi/agent/tui-unified.json`
+- **Config System** — JSON schema with load/save/defaults at `~/.pi/agent/pi-tui.json`
 - **/tui reload** — Hot-reload configuration without restarting pi
 
 ## Installation
@@ -23,12 +23,12 @@ For local development:
 ```bash
 cd packages/pi-tui
 npm link
-pi -e ./extensions/tui-unified/index.ts
+pi -e ./extensions/pi-tui/index.ts
 ```
 
 ## Configuration
 
-Create or edit `~/.pi/agent/tui-unified.json`:
+Create or edit `~/.pi/agent/pi-tui.json`:
 
 ```json
 {

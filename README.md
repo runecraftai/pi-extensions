@@ -6,7 +6,7 @@ Monorepo of [pi](https://pi.dev) extensions by Runecraft.
 
 | Package | Description | Status |
 |---------|-------------|--------|
-| [`packages/pi-tui`](./packages/pi-tui) | Unified, customizable TUI — header, footer, editor, context view | **Phase 1** (header + config) |
+| [`packages/pi-tui`](./packages/pi-tui) | Customizable TUI — header, footer, editor, context view | **Phase 1** (header + config) |
 
 > **Forward note:** [graphify-pi](https://github.com/runecraftai/graphify-pi) will be consolidated into this monorepo later. No graphify-related work is planned for this phase.
 
@@ -23,7 +23,7 @@ npm install
 # Link a package for local testing
 cd packages/pi-tui
 npm link
-pi -e ./extensions/tui-unified/index.ts
+pi -e ./extensions/pi-tui/index.ts
 ```
 
 ### Installing a Package
@@ -41,7 +41,7 @@ Pi extensions register via the `pi` field in `package.json`:
 ```json
 {
   "pi": {
-    "extensions": ["./extensions/tui-unified"]
+    "extensions": ["./extensions/pi-tui"]
   }
 }
 ```

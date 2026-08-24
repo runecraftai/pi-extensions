@@ -1,5 +1,5 @@
 /**
- * pi-tui-unified — Unified, customizable TUI for pi.
+ * pi-tui — Customizable TUI for pi.
  *
  * Phase 1: Header (animated logo, info bar, tips panel) + Config (JSON schema, load/save, /tui reload command)
  *
@@ -7,11 +7,11 @@
  */
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { loadConfig, type TuiUnifiedConfig } from "./config.ts";
+import { loadConfig, type PiTuiConfig } from "./config.ts";
 import { installHeader } from "./header/index.ts";
 
 export default function (pi: ExtensionAPI) {
-  let config: TuiUnifiedConfig = loadConfig();
+  let config: PiTuiConfig = loadConfig();
   let cleanupHeader: (() => void) | undefined;
 
   const applyHeader = (ctx: ExtensionContext, skipAnimation: boolean = false) => {
@@ -48,7 +48,7 @@ export default function (pi: ExtensionAPI) {
   /* ── /tui command ── */
 
   pi.registerCommand("tui", {
-    description: "Configure unified TUI — /tui reload to refresh from config",
+    description: "Configure TUI — /tui reload to refresh from config",
     handler: async (args, ctx) => {
       const subcommand = args?.trim() ?? "";
 
