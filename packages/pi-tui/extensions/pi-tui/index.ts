@@ -2,8 +2,9 @@
  * pi-tui — Customizable TUI for pi.
  *
  * Phase 1: Header (animated logo, info bar, tips panel) + Config (JSON schema, load/save, /tui reload command)
+ * Phase 2: Footer (configurable segments, git info, session metrics)
  *
- * Footer, editor, telemetry, and context-view are deferred to later phases.
+ * Editor, telemetry, and context-view are deferred to later phases.
  */
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
