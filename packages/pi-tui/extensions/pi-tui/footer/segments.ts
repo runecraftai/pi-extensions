@@ -14,6 +14,7 @@ import type { Theme } from "@earendil-works/pi-tui";
 export interface SegmentContext {
   theme: Theme;
   cwd: string;
+  width: number;
   footerData: ReadonlyFooterDataProvider;
   config: {
     git: { showBranch: boolean; showStatus: boolean; showCommit: boolean };
@@ -87,19 +88,29 @@ export function renderGit(ctx: SegmentContext): string {
   return parts.join(" ");
 }
 
+let cachedCommit: { cwd: string; result: string | null; timestamp: number } | null = null;
+const COMMIT_CACHE_TTL = 5000;
+
 /**
  * Get git commit info (short hash + subject).
- * Returns null if git is unavailable or not in a repo.
+ * Caches per cwd for 5 seconds to avoid blocking the render path.
  */
 function getGitCommit(cwd: string): string | null {
+  const now = Date.now();
+  if (cachedCommit && cachedCommit.cwd === cwd && now - cachedCommit.timestamp < COMMIT_CACHE_TTL) {
+    return cachedCommit.result;
+  }
   try {
     const result = execSync("git log -1 --format='%h %s'", {
       cwd,
       timeout: 500,
       stdio: ["pipe", "pipe", "pipe"],
     });
-    return result.toString().trim();
+    const commit = result.toString().trim();
+    cachedCommit = { cwd, result: commit, timestamp: now };
+    return commit;
   } catch {
+    cachedCommit = { cwd, result: null, timestamp: now };
     return null;
   }
 }
@@ -133,8 +144,7 @@ export function renderContextBar(ctx: SegmentContext): string {
   if (!ctx.config.context.showBar) {
     return "";
   }
-  // Render a thin separator line
-  return ctx.theme.fg("dim", "─".repeat(40));
+  return ctx.theme.fg("dim", "─".repeat(ctx.width));
 }
 
 /**

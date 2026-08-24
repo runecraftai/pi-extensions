@@ -34,6 +34,7 @@ function createMockContext(overrides: Partial<SegmentContext> = {}): SegmentCont
   return {
     theme: mockTheme,
     cwd: "/home/user/project",
+    width: 80,
     footerData: {
       getGitBranch: () => "main",
       getExtensionStatuses: () => new Map(),
@@ -260,16 +261,19 @@ describe("renderExtStatus", () => {
 });
 
 describe("SEGMENT_RENDERERS", () => {
-  it("has all expected segments", () => {
+  it("renders each segment through the registry", () => {
     const expectedSegments = [
       "cwd", "timer", "git", "runtime", "context_bar",
       "separator", "stale_runtime", "model", "thinking",
       "tokens", "cost", "ext_status",
     ];
+    const ctx = createMockContext();
 
     for (const segment of expectedSegments) {
-      assert.ok(SEGMENT_RENDERERS[segment] !== undefined, `Missing renderer for: ${segment}`);
-      assert.equal(typeof SEGMENT_RENDERERS[segment], "function", `Renderer for ${segment} is not a function`);
+      const renderer = SEGMENT_RENDERERS[segment];
+      assert.ok(renderer !== undefined, `Missing renderer for: ${segment}`);
+      const result = renderer(ctx);
+      assert.equal(typeof result, "string", `Renderer ${segment} did not return a string`);
     }
   });
 });

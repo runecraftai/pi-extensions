@@ -41,6 +41,7 @@ class PiTuiFooter implements Component {
     const ctx: SegmentContext = {
       theme,
       cwd: this.ctx.sessionManager.getCwd(),
+      width,
       footerData: this.footerData,
       config: this.config,
       modelId: this.ctx.model?.id,
