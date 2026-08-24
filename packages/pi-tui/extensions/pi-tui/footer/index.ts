@@ -266,7 +266,7 @@ function buildLine2Segments(
 
   if (segs.tokens) {
     const usage = ctx.getContextUsage();
-    if (usage && usage.tokens != null) {
+    if (usage && usage.tokens != null && usage.contextWindow != null) {
       result.push({
         key: "tokens",
         text: `${fgc(theme, "success", "⬆")} ${fgc(theme, "dim", fmtTokens(usage.tokens))}${fgc(theme, "dim", "/")}${fgc(theme, "dim", fmtTokens(usage.contextWindow))}`,
