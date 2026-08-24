@@ -1,8 +1,8 @@
 /**
  * Footer installer — renders a 2-line Starship-style footer.
  *
- * Line 1: CWD · git · runtime · context bar (fills remaining width)
- * Line 2: model · thinking · tokens · cost · extension status
+ * Line 1: CWD · git branch · runtime · context bar (fills remaining width)
+ * Line 2: model · thinking · tokens · extension status
  *
  * Segments are distributed edge-to-edge with even spacing.
  * Narrow terminals degrade by dropping lowest-priority segments.
