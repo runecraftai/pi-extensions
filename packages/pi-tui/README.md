@@ -80,10 +80,11 @@ Every segment in the info bar and footer has a configurable Nerd Font icon. Set 
 
 ### Footer Icons (planned)
 
+Config support is available for footer icons; rendering is planned for a future phase.
+
 | Segment        | Config Key                    | Default Icon | Description                      |
 |----------------|-------------------------------|--------------|----------------------------------|
-| Git Branch     | `footer.git.icon`             | `         ` | Fork icon (nf-fa-code_fork)      |
-| Git Status     | `footer.git.statusIcon`       | `         ` | Git icon (nf-fa-git)             |
+| Git            | `footer.git.icon`             | `         ` | Git icon (nf-fa-git)             |
 | Timer          | `footer.timer.icon`           | `         ` | Clock icon (nf-fa-clock)         |
 | Runtime        | `footer.runtime.icon`         | `         ` | Terminal icon (nf-fa-terminal)   |
 | Context Bar    | `footer.context.icon`         | `         ` | Database icon (nf-dev-database)  |

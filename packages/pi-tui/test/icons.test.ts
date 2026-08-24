@@ -35,6 +35,12 @@ describe("DEFAULT_ICONS", () => {
     }
   });
 
+  it("does not include unused agents segment", () => {
+    // Agents is displayed as plain text in the info bar, not as an icon.
+    // Only segments that render with icons should be in SegmentIcons.
+    assert.ok(!(("agents" as keyof SegmentIcons) in DEFAULT_ICONS), "agents should not be in DEFAULT_ICONS");
+  });
+
   it("includes all expected footer segments", () => {
     const footerSegments = [
       "gitBranch", "gitStatus", "timer", "runtime", "contextBar",
@@ -59,7 +65,7 @@ describe("EMPTY_ICONS", () => {
   it("has the same keys as DEFAULT_ICONS", () => {
     const defaultKeys = Object.keys(DEFAULT_ICONS).sort();
     const emptyKeys = Object.keys(EMPTY_ICONS).sort();
-    assert.deepEqual(emptyKeys, defaultKeys);
+    assert.deepEqual(emptyKeys, defaultKeys, "EMPTY_ICONS should mirror DEFAULT_ICONS structure");
   });
 });
 

@@ -14,7 +14,6 @@ export interface SegmentIcons {
   skills: string;
   prompts: string;
   extensions: string;
-  agents: string;
   cwd: string;
   /* footer — line 1 */
   gitBranch: string;
@@ -38,7 +37,6 @@ export const DEFAULT_ICONS: SegmentIcons = {
   skills: "\u{EB64}",         // nf-oct-file_directory
   prompts: "\u{F15C}",        // nf-fa-file_text
   extensions: "\u{EB25}",     // nf-oct-package
-  agents: "\u{F444}",         // nf-fa-robot
   cwd: "\u{F07B}",            // nf-fa-folder
   /* footer — line 1 */
   gitBranch: "\u{F126}",      // nf-fa-code_fork
