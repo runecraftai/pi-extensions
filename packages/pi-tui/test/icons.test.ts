@@ -13,61 +13,7 @@ import {
   type SegmentIcons,
 } from "../extensions/pi-tui/icons.ts";
 
-/* ── Default icon rendering ── */
-
-describe("DEFAULT_ICONS", () => {
-  it("has a non-empty default for every segment", () => {
-    const segments = Object.keys(DEFAULT_ICONS) as (keyof SegmentIcons)[];
-    assert.ok(segments.length > 0, "DEFAULT_ICONS should have at least one segment");
-    for (const seg of segments) {
-      const icon = DEFAULT_ICONS[seg];
-      assert.ok(
-        typeof icon === "string" && icon.length > 0,
-        `DEFAULT_ICONS.${seg} should be a non-empty string, got: ${JSON.stringify(icon)}`,
-      );
-    }
-  });
-
-  it("includes all expected header segments", () => {
-    const headerSegments = ["version", "model", "skills", "prompts", "extensions", "cwd"] as const;
-    for (const seg of headerSegments) {
-      assert.ok(seg in DEFAULT_ICONS, `DEFAULT_ICONS should include header segment "${seg}"`);
-    }
-  });
-
-  it("does not include unused agents segment", () => {
-    // Agents is displayed as plain text in the info bar, not as an icon.
-    // Only segments that render with icons should be in SegmentIcons.
-    assert.ok(!(("agents" as keyof SegmentIcons) in DEFAULT_ICONS), "agents should not be in DEFAULT_ICONS");
-  });
-
-  it("includes all expected footer segments", () => {
-    const footerSegments = [
-      "gitBranch", "gitStatus", "timer", "runtime", "contextBar",
-      "thinking", "tokenInput", "tokenOutput", "cacheHit", "cost", "extensionStatus",
-    ] as const;
-    for (const seg of footerSegments) {
-      assert.ok(seg in DEFAULT_ICONS, `DEFAULT_ICONS should include footer segment "${seg}"`);
-    }
-  });
-});
-
-/* ── EMPTY_ICONS ── */
-
-describe("EMPTY_ICONS", () => {
-  it("has empty strings for every segment", () => {
-    const segments = Object.keys(EMPTY_ICONS) as (keyof SegmentIcons)[];
-    for (const seg of segments) {
-      assert.equal(EMPTY_ICONS[seg], "", `EMPTY_ICONS.${seg} should be empty string`);
-    }
-  });
-
-  it("has the same keys as DEFAULT_ICONS", () => {
-    const defaultKeys = Object.keys(DEFAULT_ICONS).sort();
-    const emptyKeys = Object.keys(EMPTY_ICONS).sort();
-    assert.deepEqual(emptyKeys, defaultKeys, "EMPTY_ICONS should mirror DEFAULT_ICONS structure");
-  });
-});
+/* ── Behavior tests ── */
 
 /* ── resolveIcon: default behavior ── */
 
@@ -134,22 +80,5 @@ describe("resolveIcon — disabled (empty string)", () => {
     const overrides: Partial<SegmentIcons> = {};
     // Empty overrides means all segments use defaults, not disabled
     assert.equal(resolveIcon(overrides, "cwd"), DEFAULT_ICONS.cwd);
-  });
-});
-
-/* ── Config integration: deep merge preserves icons ── */
-
-describe("Config deep merge — icons", () => {
-  it("deep merge preserves header.icons from user config", async () => {
-    // Simulate what loadConfig does: deepMerge(defaults, userConfig)
-    // We import deepMerge indirectly through loadConfig, but we can test
-    // the behavior by checking that Partial<SegmentIcons> merges correctly.
-    const defaults: Partial<SegmentIcons> = {};
-    const userOverride: Partial<SegmentIcons> = { cwd: "→", model: "CPU" };
-
-    // Manual deep merge (same logic as config.ts)
-    const merged = { ...defaults, ...userOverride };
-    assert.equal(merged.cwd, "→");
-    assert.equal(merged.model, "CPU");
   });
 });

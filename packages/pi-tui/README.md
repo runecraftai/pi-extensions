@@ -78,9 +78,9 @@ Every segment in the info bar and footer has a configurable Nerd Font icon. Set 
 | Extensions   | `header.icons.extensions` | `        ` | Package icon (nf-oct-package)  |
 | CWD          | `header.icons.cwd`     | `         ` | Folder icon (nf-fa-folder)     |
 
-### Footer Icons (planned)
+### Footer Icons (schema-ready)
 
-Config support is available for footer icons; rendering is planned for a future phase.
+The config schema supports footer icon customization; rendering implementation is planned for a future phase.
 
 | Segment        | Config Key                    | Default Icon | Description                      |
 |----------------|-------------------------------|--------------|----------------------------------|
