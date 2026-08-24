@@ -135,10 +135,10 @@ export async function readGitStatus(
     status.stashed === 0 &&
     !stdout.includes("# stash")
   ) {
-    const stashOut = await gitExec(["stash", "list", "--count"], cwd);
+    const stashOut = await gitExec(["stash", "list"], cwd);
     if (stashOut !== null) {
-      const count = parseInt(stashOut.trim(), 10);
-      if (!Number.isNaN(count)) status.stashed = count;
+      const trimmed = stashOut.trim();
+      status.stashed = trimmed ? trimmed.split("\n").length : 0;
     }
   }
 
