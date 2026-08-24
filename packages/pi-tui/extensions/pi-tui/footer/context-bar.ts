@@ -18,8 +18,6 @@ const DANGER = 70;
 
 const DEFAULT_BAR_LEN = 16;
 
-
-
 interface ZoneInfo {
   icon: string;
   label: string;

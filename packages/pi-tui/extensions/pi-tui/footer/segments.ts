@@ -538,7 +538,6 @@ export function renderExtStatus(
   // Simple line wrapping for long status lines
   const result: string[] = [];
   const prefix = `${theme.fg("mdLink", glyphs.extensions)} `;
-  const prefixW = visibleWidth(prefix);
   let current = "";
   for (const status of statuses) {
     const test = current ? `${current}${separator}${theme.fg("muted", status)}` : `${prefix}${theme.fg("muted", status)}`;

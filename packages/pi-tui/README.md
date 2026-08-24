@@ -2,13 +2,24 @@
 
 Customizable TUI extension for [pi](https://pi.dev) — header, footer, editor, and context view in one configurable package.
 
-## Phase 1 Features
+## Features
+
+### Phase 1 — Header
 
 - **Animated Logo** — 14-frame animation with 9-color palette, IBM stripes, and Minecraft gradient support
 - **Info Bar** — Displays pi version, model, thinking effort, and system stats
 - **Tips Panel** — Random command suggestions to improve discoverability
 - **Config System** — JSON schema with load/save/defaults at `~/.pi/agent/pi-tui.json`
 - **/tui reload** — Hot-reload configuration without restarting pi
+
+### Phase 2 — Footer
+
+- **Configurable Two-Line Footer** — Segments on line 1 (cwd, timer, git, runtime, context_bar) and line 2 (model, thinking, tokens, cost, ext_status)
+- **Context Zone Bar** — Visual context usage bar with smart/warm/dumb zone dividers at 40%/70% thresholds
+- **Async Git Status** — Branch, ahead/behind, staged/modified/untracked/stashed counts with caching; invalidated on tool execution
+- **Priority-Based Segment Fitting** — Segments compact then drop lowest-priority on narrow terminals
+- **Icon Modes** — Auto-detect Nerd Font terminals; manual `nerd`/`ascii`/`auto` via `icons.mode`
+- **Event-Driven Updates** — Refreshes on agent start/end, message end, tool execution, model/thinking changes
 
 ## Installation
 
@@ -49,15 +60,27 @@ Create or edit `~/.pi/agent/pi-tui.json`:
     "showTips": true,
     "showStatsBar": true,
     "tipCount": 3
-  }
+  },
+  "footer": {
+    "enabled": true,
+    "line1": { "segments": ["cwd", "timer", "git", "runtime", "context_bar"] },
+    "line2": { "segments": ["model", "thinking", "tokens", "cost", "ext_status"] },
+    "git": { "showBranch": true, "showStatus": true, "showCommit": false },
+    "context": { "showBar": true, "showCompact": false },
+    "tokens": { "showInput": true, "showOutput": true, "showCache": true },
+    "telemetry": { "enabled": false, "tps": true, "ttft": true, "stalls": true }
+  },
+  "icons": { "mode": "auto", "custom": {} },
+  "colors": { "overrides": {} }
 }
 ```
+
+Available segment names: `cwd`, `timer`, `git`, `runtime`, `context_bar`, `context_pct`, `model`, `thinking`, `tokens`, `cost`, `ext_status`, `separator`, `text:<literal>`.
 
 Reload with `/tui reload` to apply changes.
 
 ## Planned Phases
 
-- **Phase 2** — Footer configuration and telemetry
 - **Phase 3** — Editor customization
 - **Phase 4** — Context view and advanced stats
 
