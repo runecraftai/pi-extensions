@@ -256,7 +256,7 @@ describe("Zone detection (context bar percentages)", () => {
 /* ── Priority-based segment fitting logic tests ── */
 
 describe("Priority-based segment fitting", () => {
-  // Test the fitSegmentsByPriority algorithm: 
+  // Test the fitSegmentsByPriority algorithm:
   // 1. Compact segments (use compactText if available and smaller)
   // 2. Drop lowest-priority segments when over width budget
 

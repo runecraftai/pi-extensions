@@ -12,7 +12,6 @@ import {
   installFooter,
   createFooterState,
   invalidateUsageCache,
-  getUsageTotals,
   type FooterState,
 } from "./footer/index.ts";
 import { emptyGitStatus, readGitStatus } from "./footer/git.ts";

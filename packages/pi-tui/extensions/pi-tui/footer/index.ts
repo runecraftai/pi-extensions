@@ -7,10 +7,7 @@
 
 import type { ExtensionAPI, ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
 import type { Component, TUI } from "@earendil-works/pi-tui";
-import {
-  truncateToWidth,
-  visibleWidth,
-} from "@earendil-works/pi-tui";
+import { truncateToWidth } from "@earendil-works/pi-tui";
 import type { FooterConfig } from "../config.ts";
 import type { GitStatus } from "./git.ts";
 import { emptyGitStatus, readGitStatus } from "./git.ts";
@@ -112,11 +109,7 @@ export function invalidateUsageCache(): void {
 
 /* ── Segment resolution ── */
 
-function resolveSegment(
-  name: string,
-  seg: SegmentContext,
-  extStatuses: ReadonlyMap<string, string>,
-): string {
+function resolveSegment(name: string, seg: SegmentContext): string {
   switch (name) {
     case "cwd": return renderCwd(seg);
     case "git": return renderGit(seg);
@@ -167,7 +160,6 @@ interface PiTuiFooterOptions {
   footerData: ReadonlyFooterDataProvider;
   config: FooterConfig;
   state: FooterState;
-  requestRender: () => void;
   scheduleGitRefresh: () => void;
   iconMode: string;
 }
@@ -229,7 +221,7 @@ class PiTuiFooter implements Component {
         if (text) line1Parts.push({ text, priority: resolveSegmentPriorities(name) });
         continue;
       }
-      const text = resolveSegment(name, segCtx, extStatuses);
+      const text = resolveSegment(name, segCtx);
       if (!text) continue;
       let compactText: string | undefined;
       if (name === "cwd") {
@@ -258,7 +250,7 @@ class PiTuiFooter implements Component {
         if (text) line2Parts.push({ text, priority: resolveSegmentPriorities(name) });
         continue;
       }
-      const text = resolveSegment(name, segCtx, extStatuses);
+      const text = resolveSegment(name, segCtx);
       if (!text) continue;
       line2Parts.push({
         text,
@@ -310,7 +302,6 @@ export function installFooter(
       footerData,
       config,
       state,
-      requestRender: () => tui.requestRender(),
       scheduleGitRefresh: hooks.scheduleGitRefresh,
       iconMode,
     });

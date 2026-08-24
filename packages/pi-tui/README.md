@@ -14,7 +14,7 @@ Customizable TUI extension for [pi](https://pi.dev) — header, footer, editor, 
 
 ### Phase 2 — Footer
 
-- **Configurable Two-Line Footer** — Segments on line 1 (cwd, timer, git, runtime, context_bar) and line 2 (model, thinking, tokens, cost, ext_status)
+- **Configurable Two-Line Footer** — Segments on line 1 (cwd, timer, git, context_bar) and line 2 (model, thinking, tokens, cost); extension statuses wrap onto additional rows
 - **Context Zone Bar** — Visual context usage bar with smart/warm/dumb zone dividers at 40%/70% thresholds
 - **Async Git Status** — Branch, ahead/behind, staged/modified/untracked/stashed counts with caching; invalidated on tool execution
 - **Priority-Based Segment Fitting** — Segments compact then drop lowest-priority on narrow terminals
@@ -63,19 +63,17 @@ Create or edit `~/.pi/agent/pi-tui.json`:
   },
   "footer": {
     "enabled": true,
-    "line1": { "segments": ["cwd", "timer", "git", "runtime", "context_bar"] },
+    "line1": { "segments": ["cwd", "timer", "git", "context_bar"] },
     "line2": { "segments": ["model", "thinking", "tokens", "cost", "ext_status"] },
     "git": { "showBranch": true, "showStatus": true, "showCommit": false },
-    "context": { "showBar": true, "showCompact": false },
-    "tokens": { "showInput": true, "showOutput": true, "showCache": true },
-    "telemetry": { "enabled": false, "tps": true, "ttft": true, "stalls": true }
+    "tokens": { "showInput": true, "showOutput": true, "showCache": true }
   },
   "icons": { "mode": "auto", "custom": {} },
   "colors": { "overrides": {} }
 }
 ```
 
-Available segment names: `cwd`, `timer`, `git`, `runtime`, `context_bar`, `context_pct`, `model`, `thinking`, `tokens`, `cost`, `ext_status`, `separator`, `text:<literal>`.
+Available segment names: `cwd`, `timer`, `git`, `context_bar`, `context_pct`, `model`, `thinking`, `tokens`, `cost`, `ext_status`, `separator`, `text:<literal>`.
 
 Reload with `/tui reload` to apply changes.
 
