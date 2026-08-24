@@ -9,10 +9,12 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { loadConfig, type PiTuiConfig } from "./config.ts";
 import { installHeader } from "./header/index.ts";
+import { installFooter } from "./footer/index.ts";
 
 export default function (pi: ExtensionAPI) {
   let config: PiTuiConfig = loadConfig();
   let cleanupHeader: (() => void) | undefined;
+  let cleanupFooter: (() => void) | undefined;
 
   const applyHeader = (ctx: ExtensionContext, skipAnimation: boolean = false) => {
     if (ctx.mode !== "tui" || !config.enabled || !config.header.enabled) {
@@ -27,6 +29,23 @@ export default function (pi: ExtensionAPI) {
     cleanupHeader = undefined;
   };
 
+  const applyFooter = (ctx: ExtensionContext) => {
+    if (ctx.mode !== "tui" || !config.enabled || !config.footer.enabled) {
+      return;
+    }
+    if (cleanupFooter) return;
+    // Footer data provider is available via ctx.footerData
+    const footerData = (ctx as any).footerData;
+    if (footerData) {
+      cleanupFooter = installFooter(pi, ctx, config.footer, footerData);
+    }
+  };
+
+  const uninstallFooter = () => {
+    cleanupFooter?.();
+    cleanupFooter = undefined;
+  };
+
   /* ── Session lifecycle ── */
 
   pi.on("session_start", (event, ctx) => {
@@ -38,11 +57,15 @@ export default function (pi: ExtensionAPI) {
       event.reason === "resume";
 
     // Defer to TUI pipeline ready
-    setTimeout(() => applyHeader(ctx, skipAnimation), 0);
+    setTimeout(() => {
+      applyHeader(ctx, skipAnimation);
+      applyFooter(ctx);
+    }, 0);
   });
 
   pi.on("session_shutdown", (_event, _ctx) => {
     uninstallHeader();
+    uninstallFooter();
   });
 
   /* ── /tui command ── */
@@ -55,7 +78,11 @@ export default function (pi: ExtensionAPI) {
       if (subcommand === "reload" || subcommand === "") {
         config = loadConfig();
         uninstallHeader();
-        setTimeout(() => applyHeader(ctx, true), 0);
+        uninstallFooter();
+        setTimeout(() => {
+          applyHeader(ctx, true);
+          applyFooter(ctx);
+        }, 0);
         ctx.ui.notify("TUI reloaded from config", "info");
         return;
       }
