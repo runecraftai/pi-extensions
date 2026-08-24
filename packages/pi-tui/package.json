@@ -1,0 +1,36 @@
+{
+  "name": "@runecraft/pi-tui",
+  "version": "0.1.0",
+  "description": "Customizable TUI for pi — header, footer, editor, and context view in one configurable extension.",
+  "type": "module",
+  "keywords": [
+    "pi",
+    "pi-package",
+    "extension",
+    "tui",
+    "header",
+    "footer",
+    "animation",
+    "logo",
+    "startup",
+    "config"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/runecraftai/pi-extensions.git",
+    "directory": "packages/pi-tui"
+  },
+  "pi": {
+    "extensions": ["./extensions/pi-tui"]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*"
+  },
+  "files": [
+    "extensions",
+    "README.md",
+    "LICENSE"
+  ]
+}
