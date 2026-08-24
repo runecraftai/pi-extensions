@@ -87,6 +87,14 @@ Create or edit `~/.pi/agent/pi-tui.json`:
 
 Reload with `/tui reload` to apply changes.
 
+## Runtime Dependencies
+
+pi-tui accesses some undocumented runtime properties from pi's ExtensionContext:
+
+- **`ctx.session.usage`** — Token usage stats (input, output, cacheRead, cacheWrite, cost). pi's typed API only exposes `getContextUsage()` for context window percentages, not per-message breakdowns. This dependency includes graceful fallback if the property is absent.
+
+If pi adds typed APIs for these features in the future, pi-tui will migrate to them.
+
 ## Planned Phases
 
 - **Phase 3** — Editor customization

@@ -90,7 +90,12 @@ class PiTuiFooter implements Component {
       const renderer = SEGMENT_RENDERERS[segment];
       if (!renderer) continue;
 
-      const text = renderer(ctx);
+      // Thread remaining width through SegmentContext so segments like context_bar
+      // can render only the available space after other segments.
+      const remainingWidth = width - totalWidth;
+      const ctxWithRemaining = { ...ctx, width: remainingWidth };
+
+      const text = renderer(ctxWithRemaining);
       if (!text) continue;
 
       const textWidth = visibleWidth(text);
@@ -115,8 +120,19 @@ class PiTuiFooter implements Component {
     return parts.join(" ");
   }
 
+  /**
+   * Get token usage stats from session.
+   *
+   * KNOWN RUNTIME DEPENDENCY: This accesses `(ctx as any).session.usage`,
+   * an undocumented ExtensionContext runtime property. pi's typed API only
+   * exposes `getContextUsage()` for context window percentages, not the
+   * per-message input/output/cache/cost breakdowns needed here.
+   *
+   * If this property changes in future pi versions, the try/catch ensures
+   * graceful degradation (usage renders as empty). Migration path: if pi
+   * adds a typed `getTokenUsage()` API, switch to it.
+   */
   private getUsage(): SegmentContext["usage"] {
-    // Try to get usage from session if available
     try {
       const session = (this.ctx as any).session;
       if (session?.usage) {
@@ -129,7 +145,7 @@ class PiTuiFooter implements Component {
         };
       }
     } catch {
-      // Ignore errors accessing session
+      // Graceful fallback: usage data unavailable
     }
     return undefined;
   }
