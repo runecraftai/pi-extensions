@@ -1,8 +1,7 @@
 /**
  * pi-tui-unified — Unified, customizable TUI for pi.
  *
- * Phase 1: Header (animated logo, info bar, tips panel)
- * Phase 3: Config (JSON schema, load/save, /tui reload command)
+ * Phase 1: Header (animated logo, info bar, tips panel) + Config (JSON schema, load/save, /tui reload command)
  *
  * Footer, editor, telemetry, and context-view are deferred to later phases.
  */
