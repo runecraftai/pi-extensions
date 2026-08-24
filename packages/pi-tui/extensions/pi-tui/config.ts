@@ -7,6 +7,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
+import type { SegmentIcons } from "./icons.ts";
 
 /* ── Types ── */
 
@@ -26,16 +27,23 @@ export interface HeaderConfig {
   showTips: boolean;
   showStatsBar: boolean;
   tipCount: number;
+  icons: Partial<SegmentIcons>;
 }
 
 export interface FooterConfig {
   enabled: boolean;
   line1: { segments: string[] };
   line2: { segments: string[] };
-  git: { showBranch: boolean; showStatus: boolean; showCommit: boolean };
-  context: { showBar: boolean; showCompact: boolean };
-  tokens: { showInput: boolean; showOutput: boolean; showCache: boolean };
+  git: { showBranch: boolean; showStatus: boolean; showCommit: boolean; icon?: string };
+  context: { showBar: boolean; showCompact: boolean; icon?: string };
+  tokens: { showInput: boolean; showOutput: boolean; showCache: boolean; inputIcon?: string; outputIcon?: string; cacheIcon?: string };
+  cost: { icon?: string };
   telemetry: { enabled: boolean; tps: boolean; ttft: boolean; stalls: boolean };
+  runtime: { icon?: string };
+  timer: { icon?: string };
+  model: { icon?: string };
+  thinking: { icon?: string };
+  extStatus: { icon?: string };
 }
 
 export interface EditorConfig {
@@ -48,7 +56,6 @@ export interface PiTuiConfig {
   header: HeaderConfig;
   footer: FooterConfig;
   editor: EditorConfig;
-  icons: { mode: string; custom: Record<string, string> };
   colors: { overrides: Record<string, string> };
 }
 
@@ -70,6 +77,7 @@ export const DEFAULT_HEADER: HeaderConfig = {
   showTips: true,
   showStatsBar: true,
   tipCount: 3,
+  icons: {},
 };
 
 const DEFAULT_FOOTER: FooterConfig = {
@@ -79,7 +87,13 @@ const DEFAULT_FOOTER: FooterConfig = {
   git: { showBranch: true, showStatus: true, showCommit: false },
   context: { showBar: true, showCompact: false },
   tokens: { showInput: true, showOutput: true, showCache: true },
+  cost: {},
   telemetry: { enabled: false, tps: true, ttft: true, stalls: true },
+  runtime: {},
+  timer: {},
+  model: {},
+  thinking: {},
+  extStatus: {},
 };
 
 const DEFAULT_EDITOR: EditorConfig = {
@@ -92,7 +106,6 @@ export const DEFAULT_CONFIG: PiTuiConfig = {
   header: structuredClone(DEFAULT_HEADER),
   footer: structuredClone(DEFAULT_FOOTER),
   editor: structuredClone(DEFAULT_EDITOR),
-  icons: { mode: "auto", custom: {} },
   colors: { overrides: {} },
 };
 
