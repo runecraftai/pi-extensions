@@ -1,18 +1,15 @@
 /**
- * Footer installer — renders a 2-line Starship-style footer.
+ * Footer installer — renders a 2-line three-zone Starship-style footer.
  *
- * Line 1: CWD · git branch · runtime · context bar (stretches to fill remaining width)
- * Line 2: model · thinking · tokens · extension status (left-packed, padded to right edge)
- *
- * Segments are left-packed with normal separators. The context bar (or a filler)
- * stretches to consume all remaining width so the footer reaches the right edge.
+ * Each line has three zones: LEFT (left-aligned), CENTER (centered), RIGHT (right-aligned).
+ * Segments are assigned to zones via config.footer.zones.
  * Narrow terminals degrade by dropping lowest-priority segments.
  */
 
 import type { ExtensionContext, ReadonlyFooterDataProvider, Theme } from "@earendil-works/pi-coding-agent";
 import type { Component } from "@earendil-works/pi-tui";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
-import type { FooterSegmentKey, PiTuiConfig } from "../config.ts";
+import type { FooterSegmentKey, FooterZone, PiTuiConfig } from "../config.ts";
 
 /* ── Priority: higher = survives longer under pressure ── */
 
@@ -52,10 +49,6 @@ function formatCwd(cwd: string): string {
   if (!home) return cwd;
   if (cwd.startsWith(home)) return `~${cwd.slice(home.length)}`;
   return cwd;
-}
-
-function basenamePath(p: string): string {
-  return p.split(/[\\/]/).filter(Boolean).at(-1) ?? p;
 }
 
 function truncatePath(path: string, maxLen: number): string {
@@ -100,19 +93,18 @@ function fgc(theme: Theme, color: string, text: string): string {
   return (theme as any).fg(color, text);
 }
 
-/* ── Left-packed segment rendering ── */
+/* ── Left-packed rendering (used inside each zone) ── */
 
 const SEP = " · ";
 const SEP_W = visibleWidth(SEP);
 
 /**
- * Render left-packed segments joined by " · ", truncated to fit maxWidth.
- * Returns the joined text and its visible width.
+ * Render segments left-packed with " · " separators, dropping lowest-priority
+ * if needed to fit maxWidth. Returns the joined text and its visible width.
  */
-function renderLeftPacked(segs: Seg[], maxWidth: number): { text: string; width: number } {
+function packSegments(segs: Seg[], maxWidth: number): { text: string; width: number } {
   if (segs.length === 0) return { text: "", width: 0 };
 
-  // Drop lowest-priority segments until they fit
   const sorted = [...segs].sort((a, b) => a.priority - b.priority);
   let totalW = sorted.reduce((a, s) => a + visibleWidth(s.text), 0) + Math.max(0, sorted.length - 1) * SEP_W;
 
@@ -139,11 +131,98 @@ function renderLeftPacked(segs: Seg[], maxWidth: number): { text: string; width:
   if (surviving.length === 0) return { text: "", width: 0 };
 
   const joined = surviving.map((s) => s.text).join(SEP);
-  const w = visibleWidth(joined);
-  return { text: joined, width: w };
+  return { text: joined, width: visibleWidth(joined) };
 }
 
-/* ── Build segments ── */
+/* ── Three-zone line renderer ── */
+
+/**
+ * Render a line with three zones: LEFT (left-aligned), CENTER (centered), RIGHT (right-aligned).
+ * Zones with no content take no space. Adjacent zones get a " · " separator between them.
+ */
+function renderThreeZoneLine(
+  left: string,
+  center: string,
+  right: string,
+  width: number,
+  theme: Theme,
+): string {
+  const leftW = visibleWidth(left);
+  const centerW = visibleWidth(center);
+  const rightW = visibleWidth(right);
+
+  // Count active zones
+  const activeCount = (leftW > 0 ? 1 : 0) + (centerW > 0 ? 1 : 0) + (rightW > 0 ? 1 : 0);
+
+  if (activeCount === 0) return "";
+  if (activeCount === 1) {
+    // Single zone: left, center, or right
+    if (leftW > 0) return left;
+    if (centerW > 0) return center;
+    return right;
+  }
+
+  // Calculate separator slots between active zones
+  const sepSlots = activeCount - 1;
+  const totalContentW = leftW + centerW + rightW;
+  const totalSepW = sepSlots * SEP_W;
+  const remaining = width - totalContentW - totalSepW;
+
+  if (remaining <= 0) {
+    // Not enough room: just jam together
+    const parts = [left, center, right].filter(Boolean);
+    return truncateToWidth(parts.join(SEP), width, "…");
+  }
+
+  // Distribute remaining space:
+  // - left zone gets left padding = 0
+  // - center zone gets centered in remaining space
+  // - right zone gets right padding
+
+  const leftPad = 0;
+  let centerPad: number;
+  let rightPad: number;
+
+  if (activeCount === 2) {
+    // Two zones: distribute remaining space between them
+    if (leftW > 0 && rightW > 0) {
+      // left + right: center gets 0, remaining goes between them
+      centerPad = 0;
+      rightPad = remaining;
+    } else if (leftW > 0 && centerW > 0) {
+      // left + center: remaining goes after center
+      centerPad = 0;
+      rightPad = remaining;
+    } else {
+      // center + right: remaining goes before center
+      centerPad = remaining;
+      rightPad = 0;
+    }
+  } else {
+    // Three zones: center gets half, right gets other half
+    centerPad = Math.floor(remaining / 2);
+    rightPad = remaining - centerPad;
+  }
+
+  const parts: string[] = [];
+  parts.push(left);
+  if (centerW > 0) {
+    parts.push(fgc(theme, "dim", SEP));
+    parts.push(" ".repeat(centerPad));
+    parts.push(center);
+  }
+  if (rightW > 0) {
+    if (leftW > 0 || centerW > 0) {
+      parts.push(fgc(theme, "dim", SEP));
+    }
+    parts.push(" ".repeat(rightPad));
+    parts.push(right);
+  }
+
+  return parts.join("");
+}
+
+/* ── Build segments per zone ── */
 
 function buildLine1Segments(
   ctx: ExtensionContext,
@@ -189,15 +268,7 @@ function buildLine1Segments(
   return result;
 }
 
-/**
- * Render context bar that stretches to fill `remainingWidth`.
- * The bar expands to consume all available space.
- */
-function buildContextBar(
-  ctx: ExtensionContext,
-  theme: Theme,
-  remainingWidth: number,
-): string {
+function buildContextBar(ctx: ExtensionContext, theme: Theme, maxWidth: number): string {
   const usage = ctx.getContextUsage();
   if (!usage || usage.tokens == null || usage.contextWindow <= 0) return "";
 
@@ -206,10 +277,8 @@ function buildContextBar(
   const tokensText = `${fgc(theme, "text", fmtTokens(usage.tokens))}${fgc(theme, "dim", "/")}${fgc(theme, "text", fmtTokens(usage.contextWindow))}`;
   const contextIcon = fgc(theme, stressColor(pct), "📊");
 
-  const spacing = 4 + visibleWidth(fgc(theme, "dim", "·"));
-  const reserved = visibleWidth(contextIcon) + visibleWidth(pctText) + visibleWidth(tokensText) + spacing;
-  // Bar stretches to fill all remaining width
-  const barWidth = Math.max(4, remainingWidth - reserved);
+  const reserved = visibleWidth(contextIcon) + visibleWidth(pctText) + visibleWidth(tokensText) + 6;
+  const barWidth = Math.max(4, Math.min(20, maxWidth - reserved));
   const bar = renderBar(theme, pct, barWidth);
 
   return `${contextIcon} ${bar} ${pctText} ${fgc(theme, "dim", "·")} ${tokensText}`;
@@ -292,48 +361,45 @@ class PiTuiFooter implements Component {
     if (!config.enabled || !config.footer.enabled) return [""];
 
     const theme = this.theme;
+    const zones = config.footer.zones;
 
-    // ── Line 1: left-packed segments + context bar stretches to right edge ──
-    const line1Segs = buildLine1Segments(this.ctx, this.footerData, theme, config, width);
-    const { text: packedText, width: packedW } = renderLeftPacked(line1Segs, width);
+    // ── Line 1: cwd, git, runtime, context bar ──
+    const allLine1 = buildLine1Segments(this.ctx, this.footerData, theme, config, width);
+    const leftLine1 = allLine1.filter((s) => (zones[s.key] ?? "left") === "left");
+    const centerLine1 = allLine1.filter((s) => zones[s.key] === "center");
+    const rightLine1 = allLine1.filter((s) => zones[s.key] === "right");
 
-    let line1: string;
+    // Context bar is a special segment — render it as a single string
+    let contextBarText = "";
     if (config.footer.segments.contextBar) {
-      // Separator + context bar consume the remaining width
-      const afterPacked = width - packedW;
-      const sepSlot = packedW > 0 && afterPacked > SEP_W ? SEP_W : 0;
-      const contextAvail = afterPacked - sepSlot;
-      const contextText = contextAvail > 0 ? buildContextBar(this.ctx, theme, contextAvail) : "";
-      const contextW = visibleWidth(contextText);
-
-      if (packedW > 0 && contextText) {
-        // packed segments + separator + context bar (fills remaining)
-        const pad = Math.max(0, width - packedW - sepSlot - contextW);
-        line1 = packedText + fgc(theme, "dim", SEP) + contextText + " ".repeat(pad);
-      } else if (contextText) {
-        // No packed segments, just context bar filling the width
-        const pad = Math.max(0, width - contextW);
-        line1 = contextText + " ".repeat(pad);
-      } else {
-        // No context data, just packed segments padded to right edge
-        const pad = Math.max(0, width - packedW);
-        line1 = packedText + " ".repeat(pad);
-      }
-    } else {
-      // No context bar: packed segments padded to right edge
-      const pad = Math.max(0, width - packedW);
-      line1 = packedText + " ".repeat(pad);
+      const ctxZone = zones.contextBar ?? "center";
+      // Allocate roughly 1/3 of width for context bar
+      const ctxBudget = Math.floor(width / 3);
+      contextBarText = buildContextBar(this.ctx, theme, ctxBudget);
+      if (ctxZone === "left") leftLine1.push({ key: "contextBar", text: contextBarText, priority: PRIORITY.contextBar });
+      else if (ctxZone === "center") centerLine1.push({ key: "contextBar", text: contextBarText, priority: PRIORITY.contextBar });
+      else rightLine1.push({ key: "contextBar", text: contextBarText, priority: PRIORITY.contextBar });
     }
 
-    // ── Line 2: left-packed segments padded to right edge ──
-    const line2Segs = buildLine2Segments(this.ctx, this.footerData, theme, config);
-    const { text: line2Packed, width: line2W } = renderLeftPacked(line2Segs, width);
-    const line2Pad = Math.max(0, width - line2W);
-    const line2 = line2Packed + " ".repeat(line2Pad);
+    const leftText1 = packSegments(leftLine1, width).text;
+    const centerText1 = packSegments(centerLine1, width).text;
+    const rightText1 = packSegments(rightLine1, width).text;
+    const line1 = renderThreeZoneLine(leftText1, centerText1, rightText1, width, theme);
+
+    // ── Line 2: model, thinking, tokens, ext status ──
+    const allLine2 = buildLine2Segments(this.ctx, this.footerData, theme, config);
+    const leftLine2 = allLine2.filter((s) => (zones[s.key] ?? "left") === "left");
+    const centerLine2 = allLine2.filter((s) => zones[s.key] === "center");
+    const rightLine2 = allLine2.filter((s) => zones[s.key] === "right");
+
+    const leftText2 = packSegments(leftLine2, width).text;
+    const centerText2 = packSegments(centerLine2, width).text;
+    const rightText2 = packSegments(rightLine2, width).text;
+    const line2 = renderThreeZoneLine(leftText2, centerText2, rightText2, width, theme);
 
     const result: string[] = [];
-    if (line1) result.push(line1);
-    if (line2) result.push(line2);
+    if (line1) result.push(truncateToWidth(line1, width, "…"));
+    if (line2) result.push(truncateToWidth(line2, width, "…"));
 
     return result.length > 0 ? result : [""];
   }

@@ -33,6 +33,10 @@ export type FooterSegmentKey =
   | "runtime" | "contextBar" | "model" | "thinking"
   | "tokens" | "cost" | "extStatus";
 
+export type FooterZone = "left" | "center" | "right";
+
+export type FooterZoneConfig = Record<FooterSegmentKey, FooterZone>;
+
 export interface FooterSegments {
   cwd: boolean;
   timer: boolean;
@@ -51,6 +55,7 @@ export interface FooterSegments {
 export interface FooterConfig {
   enabled: boolean;
   segments: FooterSegments;
+  zones: FooterZoneConfig;
   git: { showBranch: boolean; showStatus: boolean; showCommit: boolean };
   context: { showBar: boolean; showCompact: boolean };
   tokens: { showInput: boolean; showOutput: boolean; showCache: boolean };
@@ -106,6 +111,20 @@ const DEFAULT_FOOTER: FooterConfig = {
     tokens: true,
     cost: true,
     extStatus: true,
+  },
+  zones: {
+    cwd: "left",
+    timer: "left",
+    gitBranch: "left",
+    gitStatus: "left",
+    gitCommit: "left",
+    runtime: "left",
+    contextBar: "center",
+    model: "right",
+    thinking: "right",
+    tokens: "right",
+    cost: "right",
+    extStatus: "right",
   },
   git: { showBranch: true, showStatus: true, showCommit: false },
   context: { showBar: true, showCompact: false },

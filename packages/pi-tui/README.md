@@ -38,7 +38,7 @@ Run `/pi-tui` to open the settings dialog. Use **Tab** / **←** / **→** to sw
 **Tabs:**
 - **General** — Enable/disable the extension, header, and footer
 - **Appearance** — Icon mode (Auto / Nerd / ASCII), cursor style, context bar options
-- **Footer** — Toggle individual footer segments (see Footer Segments table below)
+- **Footer** — Toggle individual footer segments (CWD, git branch, runtime, context bar, model, thinking, tokens, extension status)
 
 ### Configuration
 
@@ -107,6 +107,7 @@ Create or edit `~/.pi/agent/pi-tui.json`:
 | `icons.mode` | `auto`, `nerd`, `ascii` | Controls icon rendering |
 | `editor.cursorStyle` | `block`, `bar`, `underline` | Editor cursor style |
 | `footer.segments.*` | `true` / `false` | Individual footer segment toggles |
+| `footer.zones.*` | `left`, `center`, `right` | Zone assignment per segment |
 | `footer.context.showBar` | `true` / `false` | Full context bar in footer |
 | `footer.context.showCompact` | `true` / `false` | Compact context fallback |
 
@@ -115,28 +116,44 @@ Create or edit `~/.pi/agent/pi-tui.json`:
 | Segment | Description |
 | --- | --- |
 | `cwd` | Current working directory (truncated to fit) |
-| `timer` | Session timer or duration |
 | `gitBranch` | Current git branch |
-| `gitStatus` | Git status indicators |
-| `gitCommit` | Latest commit hash or ref |
 | `runtime` | Detected runtime version |
 | `contextBar` | Context usage bar with percentage and token counts |
 | `model` | Current model name and provider |
 | `thinking` | Current thinking level |
 | `tokens` | Token usage summary |
-| `cost` | Estimated token cost |
 | `extStatus` | Extension status line |
 
 ## Footer Layout
 
-The footer uses a left-packed layout: segments are joined with ` · ` separators and aligned to the left edge. After the last segment, the context bar (or filler) stretches to consume all remaining width so the footer reaches the right edge of the terminal.
+The footer uses a **three-zone layout**: each line is divided into LEFT, CENTER, and RIGHT zones. Segments are assigned to zones via `footer.zones` in the config.
+
+- **LEFT zone** renders from the left edge
+- **CENTER zone** sits in the middle
+- **RIGHT zone** renders flush to the right edge
+
+Zones with no content take no space. Adjacent active zones are separated by ` · `.
 
 ```
-📁 ~/project · 🔀 main · ⬢ v22.0.0  ·  📊 [████████░░░░] 65.2% · 12.3k/200k
-🤖 anthropic claude-sonnet-4-20250514 · ⬆ 12.3k/200k
+📁 ~/project · 🔀 main · ⬢ v22.0.0  ·  📊 [████░░░░] 65.2%  ·  🤖 claude · ⬆ 12k/200k
 ```
 
-When the terminal is narrow, segments degrade by priority. Extension status and runtime drop first; git branch, context bar, model, and CWD survive longest. See `footer/index.ts` PRIORITY constant for exact values.
+Default zone assignments:
+
+| Zone | Segments |
+| --- | --- |
+| Left | cwd, timer, git branch/status/commit, runtime |
+| Center | context bar |
+| Right | model, thinking, tokens, cost, extension status |
+
+Zones are configurable in the JSON config and via the `/pi-tui` settings dialog (Footer tab — Enter cycles the zone for the selected segment).
+
+When the terminal is narrow, segments are degraded in priority order:
+
+1. Extension status (lowest priority — dropped first)
+2. Git commit, git status, runtime
+3. Timer, thinking, tokens, cost
+4. Git branch, context bar, CWD, model (highest priority — last to drop)
 
 ## Planned Phases
 

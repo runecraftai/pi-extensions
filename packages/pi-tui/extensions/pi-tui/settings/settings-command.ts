@@ -16,7 +16,7 @@ import {
   truncateToWidth,
   visibleWidth,
 } from "@earendil-works/pi-tui";
-import type { FooterSegmentKey, PiTuiConfig } from "../config.ts";
+import type { FooterSegmentKey, FooterZone, PiTuiConfig } from "../config.ts";
 import { saveConfig } from "../config.ts";
 
 /* ── Tab & copy ── */
@@ -33,7 +33,7 @@ interface SettingItem {
 const COPY = {
   title: "Pi TUI Settings",
   tabs: { general: "General", appearance: "Appearance", footer: "Footer" },
-  hint: "Tab/←/→: tabs · ↑/↓: move · Enter/Space: change · Esc/q: close",
+  hint: "Tab/←/→: tabs · ↑/↓: move · Space: toggle · Enter: cycle zone (Footer) · Esc/q: close",
   labels: {
     enabled: "Extension enabled",
     headerEnabled: "Header",
@@ -87,6 +87,14 @@ function toggleFooterSegment(config: PiTuiConfig, key: FooterSegmentKey): PiTuiC
   return { ...config, footer: { ...config.footer, segments: { ...segs, [key]: !segs[key] } } };
 }
 
+function cycleFooterZone(config: PiTuiConfig, key: FooterSegmentKey): PiTuiConfig {
+  const order: FooterZone[] = ["left", "center", "right"];
+  const zones = config.footer.zones;
+  const current = zones[key] ?? "left";
+  const next = order[(order.indexOf(current) + 1) % order.length]!;
+  return { ...config, footer: { ...config.footer, zones: { ...zones, [key]: next } } };
+}
+
 /* ── Build tab items ── */
 
 function buildGeneralItems(config: PiTuiConfig): SettingItem[] {
@@ -110,15 +118,16 @@ function buildAppearanceItems(config: PiTuiConfig): SettingItem[] {
 
 function buildFooterItems(config: PiTuiConfig): SettingItem[] {
   const segs = config.footer.segments;
+  const zones = config.footer.zones;
   const f = (v: boolean) => (v ? COPY.values.on : COPY.values.off);
   const order: FooterSegmentKey[] = [
     "cwd", "timer", "gitBranch", "gitStatus", "gitCommit",
     "runtime", "contextBar", "model", "thinking", "tokens", "cost", "extStatus",
   ];
   return order.map((key) => ({
-    id: key,
+    id: `seg:${key}`,
     label: COPY.labels[key],
-    currentValue: f(segs[key]),
+    currentValue: `${f(segs[key])} · ${zones[key] ?? "left"}`,
   }));
 }
 
@@ -143,7 +152,14 @@ function handleSettingChange(tab: Tab, itemId: string, config: PiTuiConfig): PiT
     if (itemId === "showCompact") return { ...config, footer: { ...config.footer, context: { ...config.footer.context, showCompact: !config.footer.context.showCompact } } };
   }
   if (tab === "footer") {
-    return toggleFooterSegment(config, itemId as FooterSegmentKey);
+    if (itemId.startsWith("seg:")) {
+      const key = itemId.slice(4) as FooterSegmentKey;
+      return toggleFooterSegment(config, key);
+    }
+    if (itemId.startsWith("zone:")) {
+      const key = itemId.slice(5) as FooterSegmentKey;
+      return cycleFooterZone(config, key);
+    }
   }
   return config;
 }
@@ -184,9 +200,15 @@ class SettingsUi {
     this.rebuild();
   }
 
-  private applySetting(itemId: string): void {
+  private applySetting(itemId: string, isEnter = false): void {
     this.selectedItemByTab[this.tab] = itemId;
-    this.config = handleSettingChange(this.tab, itemId, this.config);
+    // Footer segments: Enter cycles zone, Space toggles enable/disable
+    if (this.tab === "footer" && itemId.startsWith("seg:") && isEnter) {
+      const key = itemId.slice(4);
+      this.config = cycleFooterZone(this.config, key as FooterSegmentKey);
+    } else {
+      this.config = handleSettingChange(this.tab, itemId, this.config);
+    }
     this.onChange(this.config);
     this.rebuild(itemId);
   }
@@ -259,7 +281,11 @@ class SettingsUi {
     }
     if (matchesKey(data, Key.space) || data === " ") {
       const selected = this.selectList.getSelectedItem();
-      if (selected) this.applySetting(selected.value);
+      if (selected) this.applySetting(selected.value, false);
+    } else if (data === "\r" || data === "\n") {
+      // Enter key: for footer segments, cycle zone; otherwise apply normally
+      const selected = this.selectList.getSelectedItem();
+      if (selected) this.applySetting(selected.value, true);
     } else {
       this.selectList.handleInput?.(data);
     }
