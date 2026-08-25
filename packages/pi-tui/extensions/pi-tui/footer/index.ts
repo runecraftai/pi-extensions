@@ -1,10 +1,11 @@
 /**
  * Footer installer — renders a 2-line Starship-style footer.
  *
- * Line 1: CWD · git branch · runtime · context bar (fills remaining width)
- * Line 2: model · thinking · tokens · extension status
+ * Line 1: CWD · git branch · runtime · context bar (stretches to fill remaining width)
+ * Line 2: model · thinking · tokens · extension status (left-packed, padded to right edge)
  *
- * Segments are distributed edge-to-edge with even spacing.
+ * Segments are left-packed with normal separators. The context bar (or a filler)
+ * stretches to consume all remaining width so the footer reaches the right edge.
  * Narrow terminals degrade by dropping lowest-priority segments.
  */
 
@@ -99,74 +100,47 @@ function fgc(theme: Theme, color: string, text: string): string {
   return (theme as any).fg(color, text);
 }
 
-/* ── Fit segments edge-to-edge with even spacing ── */
+/* ── Left-packed segment rendering ── */
 
-function fitSegmentsEvenly(
-  segments: Seg[],
-  maxWidth: number,
-  ellipsis: string,
-): string[] {
-  if (segments.length === 0) return [];
-  if (maxWidth <= 0) return [""];
+const SEP = " · ";
+const SEP_W = visibleWidth(SEP);
 
-  const sorted = [...segments].sort((a, b) => a.priority - b.priority);
+/**
+ * Render left-packed segments joined by " · ", truncated to fit maxWidth.
+ * Returns the joined text and its visible width.
+ */
+function renderLeftPacked(segs: Seg[], maxWidth: number): { text: string; width: number } {
+  if (segs.length === 0) return { text: "", width: 0 };
 
   // Drop lowest-priority segments until they fit
-  const joinWidth = 3; // " · "
-  let totalW = sorted.reduce((a, s) => a + visibleWidth(s.text), 0) + Math.max(0, sorted.length - 1) * joinWidth;
+  const sorted = [...segs].sort((a, b) => a.priority - b.priority);
+  let totalW = sorted.reduce((a, s) => a + visibleWidth(s.text), 0) + Math.max(0, sorted.length - 1) * SEP_W;
 
   for (const seg of sorted) {
     if (totalW <= maxWidth) break;
     const segW = visibleWidth(seg.text);
-    const without = totalW - segW - joinWidth;
+    const without = totalW - segW - SEP_W;
     if (without <= 0) {
       seg.text = "";
-      totalW -= segW + joinWidth;
+      totalW -= segW + SEP_W;
     } else if (segW > 0) {
-      const avail = maxWidth - without - joinWidth;
-      if (avail > visibleWidth(ellipsis)) {
-        seg.text = truncateToWidth(seg.text, avail, ellipsis);
-        totalW = without + visibleWidth(seg.text) + joinWidth;
+      const avail = maxWidth - without - SEP_W;
+      if (avail > 3) {
+        seg.text = truncateToWidth(seg.text, avail, "…");
+        totalW = without + visibleWidth(seg.text) + SEP_W;
       } else {
         seg.text = "";
-        totalW -= segW + joinWidth;
+        totalW -= segW + SEP_W;
       }
     }
   }
 
-  const surviving = segments.filter((s) => s.text !== "");
-  if (surviving.length === 0) return [];
+  const surviving = segs.filter((s) => s.text !== "");
+  if (surviving.length === 0) return { text: "", width: 0 };
 
-  // Distribute evenly (flex space-evenly)
-  const totalSegWidth = surviving.reduce((a, s) => a + visibleWidth(s.text), 0);
-  const gaps = surviving.length;
-  const totalGapSpace = maxWidth - totalSegWidth;
-
-  if (totalGapSpace <= 0) {
-    const joined = surviving.map((s) => s.text).join(" · ");
-    if (visibleWidth(joined) >= maxWidth) {
-      return [truncateToWidth(joined, maxWidth, ellipsis)];
-    }
-    return [joined + " ".repeat(maxWidth - visibleWidth(joined))];
-  }
-
-  // Space-evenly: distribute gap space across (n+1) slots
-  // n slots between segments + 1 left edge + 1 right edge
-  const nSlots = surviving.length + 1;
-  const slotSize = Math.floor(totalGapSpace / nSlots);
-  const remainder = totalGapSpace - slotSize * nSlots;
-  const padLeft = Math.floor(remainder / 2);
-  const padRight = remainder - padLeft;
-
-  const parts: string[] = [];
-  parts.push(" ".repeat(padLeft + slotSize)); // left edge
-  for (let i = 0; i < surviving.length; i++) {
-    parts.push(surviving[i]!.text);
-    parts.push(" ".repeat(slotSize)); // gap after each segment
-  }
-  parts.push(" ".repeat(padRight)); // right edge (remainder only)
-
-  return [parts.join("")];
+  const joined = surviving.map((s) => s.text).join(SEP);
+  const w = visibleWidth(joined);
+  return { text: joined, width: w };
 }
 
 /* ── Build segments ── */
@@ -215,6 +189,10 @@ function buildLine1Segments(
   return result;
 }
 
+/**
+ * Render context bar that stretches to fill `remainingWidth`.
+ * The bar expands to consume all available space.
+ */
 function buildContextBar(
   ctx: ExtensionContext,
   theme: Theme,
@@ -229,7 +207,8 @@ function buildContextBar(
   const contextIcon = fgc(theme, stressColor(pct), "📊");
 
   const reserved = visibleWidth(contextIcon) + visibleWidth(pctText) + visibleWidth(tokensText) + 6;
-  const barWidth = Math.max(4, Math.min(14, remainingWidth - reserved));
+  // Bar stretches to fill all remaining width
+  const barWidth = Math.max(4, remainingWidth - reserved);
   const bar = renderBar(theme, pct, barWidth);
 
   return `${contextIcon} ${bar} ${pctText} ${fgc(theme, "dim", "·")} ${tokensText}`;
@@ -313,33 +292,45 @@ class PiTuiFooter implements Component {
 
     const theme = this.theme;
 
-    // ── Line 1: CWD · git · runtime · context bar ──
+    // ── Line 1: left-packed segments + context bar stretches to right edge ──
     const line1Segs = buildLine1Segments(this.ctx, this.footerData, theme, config, width);
-    const contextText = config.footer.segments.contextBar
-      ? buildContextBar(this.ctx, theme, width)
-      : "";
-
-    const sep = " · ";
-    const sepW = visibleWidth(sep);
-    const contextW = visibleWidth(contextText);
-    const availForRegular = width - contextW - (contextW > 0 ? sepW : 0);
+    const { text: packedText, width: packedW } = renderLeftPacked(line1Segs, width);
 
     let line1: string;
-    if (contextText) {
-      const regularText = fitSegmentsEvenly(line1Segs, availForRegular, "…").join("");
-      const regW = visibleWidth(regularText);
-      const pad = Math.max(1, width - regW - sepW - contextW);
-      line1 = regularText + " ".repeat(pad) + fgc(theme, "dim", sep) + contextText;
+    if (config.footer.segments.contextBar) {
+      // Separator + context bar consume the remaining width
+      const afterPacked = width - packedW;
+      const sepSlot = packedW > 0 && afterPacked > SEP_W ? SEP_W : 0;
+      const contextAvail = afterPacked - sepSlot;
+      const contextText = contextAvail > 0 ? buildContextBar(this.ctx, theme, contextAvail) : "";
+      const contextW = visibleWidth(contextText);
+
+      if (packedW > 0 && contextText) {
+        // packed segments + separator + context bar (fills remaining)
+        const pad = Math.max(0, width - packedW - sepSlot - contextW);
+        line1 = packedText + fgc(theme, "dim", SEP) + contextText + " ".repeat(pad);
+      } else if (contextText) {
+        // No packed segments, just context bar filling the width
+        const pad = Math.max(0, width - contextW);
+        line1 = contextText + " ".repeat(pad);
+      } else {
+        // No context data, just packed segments padded to right edge
+        const pad = Math.max(0, width - packedW);
+        line1 = packedText + " ".repeat(pad);
+      }
     } else {
-      line1 = fitSegmentsEvenly(line1Segs, width, "…").join("");
+      // No context bar: packed segments padded to right edge
+      const pad = Math.max(0, width - packedW);
+      line1 = packedText + " ".repeat(pad);
     }
 
-    // ── Line 2: model · thinking · tokens · ext status ──
+    // ── Line 2: left-packed segments padded to right edge ──
     const line2Segs = buildLine2Segments(this.ctx, this.footerData, theme, config);
-    const line2 = fitSegmentsEvenly(line2Segs, width, "…").join("");
+    const { text: line2Packed, width: line2W } = renderLeftPacked(line2Segs, width);
+    const line2Pad = Math.max(0, width - line2W);
+    const line2 = line2Packed + " ".repeat(line2Pad);
 
     const result: string[] = [];
-    // Don't truncate padded lines — trailing spaces are intentional for full-width fill
     if (line1) result.push(line1);
     if (line2) result.push(line2);
 

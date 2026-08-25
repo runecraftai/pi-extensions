@@ -8,7 +8,7 @@ Customizable TUI extension for [pi](https://pi.dev) — header, footer, editor, 
 - **Info Bar** — Displays pi version, model, thinking effort, and system stats
 - **Tips Panel** — Random command suggestions to improve discoverability
 - **Starship-style Footer** — 2-line footer with CWD, git branch, runtime, context bar, model, tokens, and extension status
-- **Even-width Distribution** — Footer segments fill the full terminal width edge-to-edge with even spacing
+- **Full-width Footer** — Segments are left-packed; the context bar or filler stretches to consume remaining width so the footer reaches the right edge
 - **Interactive Settings UI** — `/pi-tui` opens a tabbed settings dialog (General / Appearance / Footer)
 - **Config System** — JSON schema with load/save/defaults at `~/.pi/agent/pi-tui.json`
 - **/pi-tui reload** — Hot-reload configuration without restarting pi
@@ -125,7 +125,14 @@ Create or edit `~/.pi/agent/pi-tui.json`:
 
 ## Footer Layout
 
-The footer distributes segments across the full terminal width using even spacing (like CSS `space-evenly`). When the terminal is narrow, segments are degraded in priority order:
+The footer uses a left-packed layout: segments are joined with ` · ` separators and aligned to the left edge. After the last segment, the context bar (or filler) stretches to consume all remaining width so the footer reaches the right edge of the terminal.
+
+```
+📁 ~/project · 🔀 main · ⬢ v22.0.0  ·  📊 [████████░░░░] 65.2% · 12.3k/200k
+🤖 anthropic claude-sonnet-4-20250514 · ⬆ 12.3k/200k
+```
+
+When the terminal is narrow, segments are degraded in priority order:
 
 1. Extension status (lowest priority — dropped first)
 2. Runtime
