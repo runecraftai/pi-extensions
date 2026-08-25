@@ -203,21 +203,25 @@ describe("Three-zone line layout", () => {
 });
 
 describe("Zone assignment", () => {
-  it("all segments default to left zone", () => {
+  it("layout D defaults: left = project identity, right = metrics", () => {
     const zones: Record<string, Zone> = {
-      cwd: "left", timer: "left", gitBranch: "left", gitStatus: "left",
-      gitCommit: "left", runtime: "left", contextBar: "center",
-      model: "right", thinking: "right", tokens: "right", cost: "right", extStatus: "right",
+      cwd: "left", gitBranch: "left", gitStatus: "left", gitCommit: "left", runtime: "left",
+      timer: "right", contextBar: "right", model: "right", thinking: "right",
+      tokens: "right", cost: "right", extStatus: "right",
     };
     const leftSegs = Object.entries(zones).filter(([, z]) => z === "left").map(([k]) => k);
     assert.ok(leftSegs.includes("cwd"));
-    assert.ok(leftSegs.includes("timer"));
     assert.ok(leftSegs.includes("gitBranch"));
+    assert.ok(leftSegs.includes("gitStatus"));
+    const rightSegs = Object.entries(zones).filter(([, z]) => z === "right").map(([k]) => k);
+    assert.ok(rightSegs.includes("contextBar"));
+    assert.ok(rightSegs.includes("model"));
+    assert.ok(rightSegs.includes("cost"));
   });
 
-  it("context bar defaults to center zone", () => {
-    const zones = { contextBar: "center" as Zone };
-    assert.equal(zones.contextBar, "center");
+  it("context bar defaults to right zone (layout D)", () => {
+    const zones = { contextBar: "right" as Zone };
+    assert.equal(zones.contextBar, "right");
   });
 
   it("model defaults to right zone", () => {

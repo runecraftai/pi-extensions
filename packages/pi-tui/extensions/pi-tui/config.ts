@@ -113,13 +113,14 @@ const DEFAULT_FOOTER: FooterConfig = {
     extStatus: true,
   },
   zones: {
+    // Layout D: LEFT = project identity, RIGHT = metrics
     cwd: "left",
-    timer: "left",
     gitBranch: "left",
     gitStatus: "left",
     gitCommit: "left",
     runtime: "left",
-    contextBar: "center",
+    timer: "right",
+    contextBar: "right",
     model: "right",
     thinking: "right",
     tokens: "right",

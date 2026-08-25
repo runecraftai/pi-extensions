@@ -138,13 +138,14 @@ Zones with no content take no space. Adjacent active zones are separated by ` ·
 📁 ~/project · 🔀 main · ⬢ v22.0.0  ·  📊 [████░░░░] 65.2%  ·  🤖 claude · ⬆ 12k/200k
 ```
 
-Default zone assignments:
+Default zone assignments (Layout D — *Esquerda + Direita*):
 
 | Zone | Segments |
 | --- | --- |
-| Left | cwd, timer, git branch/status/commit, runtime |
-| Center | context bar |
-| Right | model, thinking, tokens, cost, extension status |
+| Left | cwd, git branch/status/commit, runtime (project identity) |
+| Right | timer, context bar, model, thinking, tokens, cost, extension status (metrics) |
+
+The context bar renders compact within the right zone — it does not stretch to the terminal edge.
 
 Zones are configurable in the JSON config and via the `/pi-tui` settings dialog (Footer tab — Enter cycles the zone for the selected segment).
 

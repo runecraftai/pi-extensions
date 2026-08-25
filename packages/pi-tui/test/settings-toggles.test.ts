@@ -42,9 +42,10 @@ const DEFAULT_CONFIG: PiTuiConfig = {
       tokens: true, cost: true, extStatus: true,
     },
     zones: {
-      cwd: "left", timer: "left", gitBranch: "left", gitStatus: "left",
-      gitCommit: "left", runtime: "left", contextBar: "center",
-      model: "right", thinking: "right", tokens: "right", cost: "right", extStatus: "right",
+      // Layout D defaults
+      cwd: "left", gitBranch: "left", gitStatus: "left", gitCommit: "left", runtime: "left",
+      timer: "right", contextBar: "right", model: "right", thinking: "right",
+      tokens: "right", cost: "right", extStatus: "right",
     },
     context: { showBar: true, showCompact: false },
   },
@@ -180,7 +181,8 @@ describe("Settings toggles", () => {
     for (const key of ["cwd", "model", "contextBar"] as FooterSegmentKey[]) {
       it(`cycleFooterZone("${key}") cycles left -> center -> right -> left`, () => {
         let c = structuredClone(DEFAULT_CONFIG);
-        assert.equal(c.footer.zones[key], key === "contextBar" ? "center" : key === "model" ? "right" : "left");
+        // Layout D defaults: cwd=left, contextBar=right, model=right
+        assert.equal(c.footer.zones[key], key === "cwd" ? "left" : "right");
         // Cycle until we get back to start
         const start = c.footer.zones[key];
         c = cycleFooterZone(c, key);
