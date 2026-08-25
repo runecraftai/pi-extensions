@@ -3,7 +3,7 @@
  *
  * Features:
  * - Animated logo header with info bar and tips
- * - Starship-style footer with even-width segment distribution
+ * - Starship-style footer with left-packed segments and right-filling context bar
  * - Interactive settings UI via /pi-tui command
  * - JSON config at ~/.pi/agent/pi-tui.json
  */

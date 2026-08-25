@@ -38,7 +38,7 @@ Run `/pi-tui` to open the settings dialog. Use **Tab** / **←** / **→** to sw
 **Tabs:**
 - **General** — Enable/disable the extension, header, and footer
 - **Appearance** — Icon mode (Auto / Nerd / ASCII), cursor style, context bar options
-- **Footer** — Toggle individual footer segments (CWD, git branch, runtime, context bar, model, thinking, tokens, extension status)
+- **Footer** — Toggle individual footer segments (see Footer Segments table below)
 
 ### Configuration
 
@@ -115,12 +115,16 @@ Create or edit `~/.pi/agent/pi-tui.json`:
 | Segment | Description |
 | --- | --- |
 | `cwd` | Current working directory (truncated to fit) |
+| `timer` | Session timer or duration |
 | `gitBranch` | Current git branch |
+| `gitStatus` | Git status indicators |
+| `gitCommit` | Latest commit hash or ref |
 | `runtime` | Detected runtime version |
 | `contextBar` | Context usage bar with percentage and token counts |
 | `model` | Current model name and provider |
 | `thinking` | Current thinking level |
 | `tokens` | Token usage summary |
+| `cost` | Estimated token cost |
 | `extStatus` | Extension status line |
 
 ## Footer Layout
@@ -132,12 +136,7 @@ The footer uses a left-packed layout: segments are joined with ` · ` separators
 🤖 anthropic claude-sonnet-4-20250514 · ⬆ 12.3k/200k
 ```
 
-When the terminal is narrow, segments are degraded in priority order:
-
-1. Extension status (lowest priority — dropped first)
-2. Runtime
-3. Thinking, tokens
-4. Git branch, context bar, CWD, model (highest priority — last to drop)
+When the terminal is narrow, segments degrade by priority. Extension status and runtime drop first; git branch, context bar, model, and CWD survive longest. See `footer/index.ts` PRIORITY constant for exact values.
 
 ## Planned Phases
 
