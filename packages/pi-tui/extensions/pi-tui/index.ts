@@ -1,21 +1,25 @@
 /**
  * pi-tui — Customizable TUI for pi.
  *
- * Phase 1: Header (animated logo, info bar, tips panel) + Config (JSON schema, load/save, /tui reload command)
- * Phase 2: Footer (configurable segments, git info, session metrics)
- *
- * Editor, telemetry, and context-view are deferred to later phases.
+ * Features:
+ * - Animated logo header with info bar and tips
+ * - Starship-style footer with left-packed segments and right-filling context bar
+ * - Interactive settings UI via /pi-tui command
+ * - JSON config at ~/.pi/agent/pi-tui.json
  */
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { loadConfig, type PiTuiConfig } from "./config.ts";
+import { loadConfig, saveConfig, type PiTuiConfig } from "./config.ts";
 import { installHeader } from "./header/index.ts";
 import { installFooter } from "./footer/index.ts";
+import { registerSettingsCommand } from "./settings/settings-command.ts";
 
 export default function (pi: ExtensionAPI) {
   let config: PiTuiConfig = loadConfig();
   let cleanupHeader: (() => void) | undefined;
   let cleanupFooter: (() => void) | undefined;
+
+  const getConfig = () => config;
 
   const applyHeader = (ctx: ExtensionContext, skipAnimation: boolean = false) => {
     if (ctx.mode !== "tui" || !config.enabled || !config.header.enabled) {
@@ -35,11 +39,7 @@ export default function (pi: ExtensionAPI) {
       return;
     }
     if (cleanupFooter) return;
-    // Footer data provider is available via ctx.footerData
-    const footerData = (ctx as any).footerData;
-    if (footerData) {
-      cleanupFooter = installFooter(pi, ctx, config.footer, footerData);
-    }
+    cleanupFooter = installFooter(ctx, getConfig);
   };
 
   const uninstallFooter = () => {
@@ -47,51 +47,37 @@ export default function (pi: ExtensionAPI) {
     cleanupFooter = undefined;
   };
 
-  /* ── Session lifecycle ── */
+  const applyAll = (ctx: ExtensionContext, skipAnimation: boolean = false) => {
+    applyHeader(ctx, skipAnimation);
+    applyFooter(ctx);
+  };
 
+  const uninstallAll = () => {
+    uninstallHeader();
+    uninstallFooter();
+  };
+
+  /* ── Register settings command ── */
+  registerSettingsCommand(pi, {
+    getConfig,
+    onConfigChanged: (newConfig: PiTuiConfig) => {
+      config = newConfig;
+      saveConfig(config);
+    },
+  });
+
+  /* ── Session lifecycle ── */
   pi.on("session_start", (event, ctx) => {
     config = loadConfig();
 
-    // Skip animation on reload and resume to avoid screen flickering
     const skipAnimation =
       event.reason === "reload" ||
       event.reason === "resume";
 
-    // Defer to TUI pipeline ready
-    setTimeout(() => {
-      applyHeader(ctx, skipAnimation);
-      applyFooter(ctx);
-    }, 0);
+    setTimeout(() => applyAll(ctx, skipAnimation), 0);
   });
 
   pi.on("session_shutdown", (_event, _ctx) => {
-    uninstallHeader();
-    uninstallFooter();
-  });
-
-  /* ── /tui command ── */
-
-  pi.registerCommand("tui", {
-    description: "Configure TUI — /tui reload to refresh from config",
-    handler: async (args, ctx) => {
-      const subcommand = args?.trim() ?? "";
-
-      if (subcommand === "reload" || subcommand === "") {
-        config = loadConfig();
-        uninstallHeader();
-        uninstallFooter();
-        setTimeout(() => {
-          applyHeader(ctx, true);
-          applyFooter(ctx);
-        }, 0);
-        ctx.ui.notify("TUI reloaded from config", "info");
-        return;
-      }
-
-      ctx.ui.notify(
-        `Unknown /tui subcommand: "${subcommand}". Available: reload`,
-        "warning",
-      );
-    },
+    uninstallAll();
   });
 }

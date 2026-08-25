@@ -1,175 +1,119 @@
 /**
- * pi-tui footer component — segment-based rendering.
+ * pi-tui footer component — left-packed segment rendering.
  *
- * Replaces the built-in footer with a configurable segment-based system.
+ * Footer segments use the shared renderers from segments.ts. The context bar
+ * is appended after packed segments and expands to the right edge.
  */
 
-import type { ExtensionAPI, ExtensionContext, ReadonlyFooterDataProvider } from "@earendil-works/pi-coding-agent";
-import type { Component, TUI } from "@earendil-works/pi-tui";
+import type { ExtensionContext, ReadonlyFooterDataProvider, Theme } from "@earendil-works/pi-coding-agent";
+import type { Component } from "@earendil-works/pi-tui";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
-import type { FooterConfig } from "../config.ts";
-import {
-  SEGMENT_RENDERERS,
-  type SegmentContext,
-} from "./segments.ts";
+import type { FooterSegmentKey, PiTuiConfig } from "../config.ts";
+import { SEGMENT_RENDERERS, type SegmentContext } from "./segments.ts";
 
-/* ── Footer component ── */
+const SEP = " · ";
+const PRIORITY: Record<FooterSegmentKey, number> = {
+  cwd: 10, model: 9, tokens: 7, timer: 6, gitBranch: 8, gitStatus: 5,
+  gitCommit: 4, runtime: 5, contextBar: 8, thinking: 6, cost: 7, extStatus: 3,
+};
+
+interface Seg { key: FooterSegmentKey; text: string; priority: number }
+
+function packSegments(segs: Seg[], maxWidth: number): string {
+  if (maxWidth <= 0 || segs.length === 0) return "";
+  const sorted = [...segs].sort((a, b) => a.priority - b.priority);
+  const kept: Seg[] = [];
+  let width = 0;
+  for (const seg of sorted) {
+    const separator = kept.length > 0 ? visibleWidth(SEP) : 0;
+    const available = maxWidth - width - separator;
+    if (available <= 0) continue;
+    const text = visibleWidth(seg.text) <= available
+      ? seg.text
+      : truncateToWidth(seg.text, available, "…");
+    if (!text) continue;
+    kept.push({ ...seg, text });
+    width += separator + visibleWidth(text);
+  }
+  return kept.map((seg) => seg.text).join(SEP);
+}
+
+function contextBar(ctx: ExtensionContext, theme: Theme, width: number): string {
+  const usage = ctx.getContextUsage();
+  if (!usage || usage.tokens == null || usage.contextWindow <= 0 || width <= 0) return "";
+  const pct = usage.percent ?? 0;
+  const icon = (theme as any).fg(pct >= 90 ? "error" : pct >= 70 ? "warning" : "accent", "📊");
+  const pctText = (theme as any).fg(pct >= 90 ? "error" : pct >= 70 ? "warning" : "accent", `${pct.toFixed(1)}%`);
+  const fmt = (n: number) => n < 1000 ? `${n}` : n < 1_000_000 ? `${Math.round(n / 1000)}k` : `${(n / 1_000_000).toFixed(1)}M`;
+  const tokens = `${fmt(usage.tokens)}/${fmt(usage.contextWindow)}`;
+  const fixed = visibleWidth(icon) + visibleWidth(pctText) + visibleWidth(tokens) + 6;
+  const barWidth = Math.max(4, width - fixed);
+  const filled = Math.min(barWidth, Math.round((pct / 100) * barWidth));
+  const bar = (theme as any).fg("dim", "[") +
+    (theme as any).fg(pct >= 90 ? "error" : pct >= 70 ? "warning" : "accent", "█".repeat(filled)) +
+    (theme as any).fg("dim", "░".repeat(barWidth - filled) + "]");
+  return `${icon} ${bar} ${pctText} ${(theme as any).fg("dim", "·")} ${tokens}`;
+}
+
+function usage(ctx: ExtensionContext): SegmentContext["usage"] {
+  // Runtime dependency retained from PR 4; unavailable usage degrades cleanly.
+  try {
+    const session = (ctx as any).session;
+    if (session?.usage) return {
+      input: session.usage.input ?? 0, output: session.usage.output ?? 0,
+      cacheRead: session.usage.cacheRead ?? 0, cacheWrite: session.usage.cacheWrite ?? 0,
+      cost: session.usage.cost ?? 0,
+    };
+  } catch { /* graceful fallback */ }
+  return undefined;
+}
+
+function renderSegment(key: FooterSegmentKey, ctx: SegmentContext): string {
+  const renderer = key === "gitBranch" || key === "gitStatus" || key === "gitCommit"
+    ? SEGMENT_RENDERERS.git : SEGMENT_RENDERERS[key === "contextBar" ? "context_bar" : key === "extStatus" ? "ext_status" : key];
+  return renderer ? renderer(ctx) : "";
+}
 
 class PiTuiFooter implements Component {
-  private readonly startTime: number;
-
   constructor(
-    private readonly pi: ExtensionAPI,
     private readonly ctx: ExtensionContext,
-    private readonly tui: TUI,
-    private readonly config: FooterConfig,
     private readonly footerData: ReadonlyFooterDataProvider,
-  ) {
-    this.startTime = Date.now();
-  }
+    private readonly theme: Theme,
+    private readonly getConfig: () => PiTuiConfig,
+    private readonly startTime = Date.now(),
+  ) {}
 
-  invalidate(): void {
-    // No-op: data is fetched fresh each render
-  }
-
-  dispose(): void {
-    // No-op: no resources to clean up
-  }
+  invalidate(): void {}
+  dispose(): void {}
 
   render(width: number): string[] {
-    const theme = this.ctx.ui.theme;
-    const ctx: SegmentContext = {
-      theme,
-      cwd: this.ctx.sessionManager.getCwd(),
-      width,
-      footerData: this.footerData,
-      config: this.config,
-      modelId: this.ctx.model?.id,
-      contextPercent: null,
-      contextWindow: this.ctx.model?.contextWindow,
-      usage: this.getUsage(),
-      thinkingLevel: undefined,
-      startTime: this.startTime,
+    const config = this.getConfig();
+    if (width <= 0 || !config.enabled || !config.footer.enabled) return [""];
+    const segmentCtx: SegmentContext = {
+      theme: this.theme, cwd: this.ctx.sessionManager.getCwd(), width,
+      footerData: this.footerData, config: config.footer,
+      modelId: this.ctx.model?.id, contextWindow: this.ctx.model?.contextWindow,
+      usage: usage(this.ctx), thinkingLevel: this.ctx.thinkingLevel, startTime: this.startTime,
     };
-
-    const lines: string[] = [];
-
-    // Render line1 segments
-    if (this.config.line1.segments.length > 0) {
-      const line1Parts = this.renderSegments(this.config.line1.segments, ctx, width);
-      if (line1Parts) {
-        lines.push(truncateToWidth(line1Parts, width, "..."));
-      }
+    const enabled = config.footer.segments;
+    const line1Keys: FooterSegmentKey[] = ["cwd", "gitBranch", "gitStatus", "gitCommit", "runtime"];
+    const line2Keys: FooterSegmentKey[] = ["model", "thinking", "tokens", "cost", "extStatus"];
+    const make = (keys: FooterSegmentKey[]) => packSegments(keys.filter((key) => enabled[key]).map((key) => ({
+      key, text: renderSegment(key, segmentCtx), priority: PRIORITY[key],
+    })).filter((seg) => seg.text), width);
+    const line1Packed = make(line1Keys);
+    const line2 = make(line2Keys);
+    let line1 = line1Packed;
+    if (enabled.contextBar) {
+      const separator = line1Packed ? SEP : "";
+      const bar = contextBar(this.ctx, this.theme, Math.max(0, width - visibleWidth(line1Packed) - visibleWidth(separator)));
+      line1 = line1Packed + separator + bar;
     }
-
-    // Render line2 segments
-    if (this.config.line2.segments.length > 0) {
-      const line2Parts = this.renderSegments(this.config.line2.segments, ctx, width);
-      if (line2Parts) {
-        lines.push(truncateToWidth(line2Parts, width, "..."));
-      }
-    }
-
-    // If context.showCompact is enabled, reduce spacing
-    if (this.config.context.showCompact && lines.length > 1) {
-      // Already compact - no extra spacing added
-    }
-
-    return lines;
-  }
-
-  private renderSegments(
-    segments: string[],
-    ctx: SegmentContext,
-    width: number,
-  ): string {
-    const parts: string[] = [];
-    let totalWidth = 0;
-
-    for (const segment of segments) {
-      const renderer = SEGMENT_RENDERERS[segment];
-      if (!renderer) continue;
-
-      // Thread remaining width through SegmentContext so segments like context_bar
-      // can render only the available space after other segments.
-      const remainingWidth = width - totalWidth;
-      const ctxWithRemaining = { ...ctx, width: remainingWidth };
-
-      const text = renderer(ctxWithRemaining);
-      if (!text) continue;
-
-      const textWidth = visibleWidth(text);
-      if (totalWidth + textWidth > width) {
-        // Truncate if needed
-        const remaining = width - totalWidth;
-        if (remaining > 0) {
-          parts.push(truncateToWidth(text, remaining, "..."));
-        }
-        break;
-      }
-
-      parts.push(text);
-      totalWidth += textWidth;
-
-      // Add separator between parts
-      if (parts.length > 1 && totalWidth < width) {
-        totalWidth += 1; // Space separator
-      }
-    }
-
-    return parts.join(" ");
-  }
-
-  /**
-   * Get token usage stats from session.
-   *
-   * KNOWN RUNTIME DEPENDENCY: This accesses `(ctx as any).session.usage`,
-   * an undocumented ExtensionContext runtime property. pi's typed API only
-   * exposes `getContextUsage()` for context window percentages, not the
-   * per-message input/output/cache/cost breakdowns needed here.
-   *
-   * If this property changes in future pi versions, the try/catch ensures
-   * graceful degradation (usage renders as empty). Migration path: if pi
-   * adds a typed `getTokenUsage()` API, switch to it.
-   */
-  private getUsage(): SegmentContext["usage"] {
-    try {
-      const session = (this.ctx as any).session;
-      if (session?.usage) {
-        return {
-          input: session.usage.input ?? 0,
-          output: session.usage.output ?? 0,
-          cacheRead: session.usage.cacheRead ?? 0,
-          cacheWrite: session.usage.cacheWrite ?? 0,
-          cost: session.usage.cost ?? 0,
-        };
-      }
-    } catch {
-      // Graceful fallback: usage data unavailable
-    }
-    return undefined;
+    return [line1, line2].filter(Boolean).map((line) => truncateToWidth(line, width, "…"));
   }
 }
 
-/* ── Installer ── */
-
-export function installFooter(
-  pi: ExtensionAPI,
-  ctx: ExtensionContext,
-  config: FooterConfig,
-  footerData: ReadonlyFooterDataProvider,
-): () => void {
-  let footer: PiTuiFooter | undefined;
-
-  ctx.ui.setFooter((tui, _theme, _fd) => {
-    footer?.dispose();
-    footer = new PiTuiFooter(pi, ctx, tui, config, footerData);
-    return footer;
-  });
-
-  return () => {
-    footer?.dispose();
-    footer = undefined;
-    ctx.ui.setFooter(undefined);
-  };
+export function installFooter(ctx: ExtensionContext, getConfig: () => PiTuiConfig): () => void {
+  ctx.ui.setFooter((_tui, theme, footerData) => new PiTuiFooter(ctx, footerData, theme, getConfig));
+  return () => ctx.ui.setFooter(undefined);
 }
