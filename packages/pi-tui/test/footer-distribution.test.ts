@@ -178,9 +178,14 @@ describe("Right-edge fill", () => {
   });
 
   it("no segments: context bar fills entire width", () => {
-    const totalWidth = 80;
-    // When no packed segments, context bar gets full width
-    assert.equal(totalWidth, 80);
+    const segs: Seg[] = [];
+    const result = renderLeftPacked(segs, 80);
+    // When no packed segments, we have 0 width used, full 80 available
+    assert.equal(result.text, "");
+    assert.equal(result.width, 0);
+    // Padding would fill remaining 80 chars for context bar
+    const padded = result.text + " ".repeat(80 - result.width);
+    assert.equal(padded.length, 80);
   });
 });
 

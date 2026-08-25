@@ -206,7 +206,8 @@ function buildContextBar(
   const tokensText = `${fgc(theme, "text", fmtTokens(usage.tokens))}${fgc(theme, "dim", "/")}${fgc(theme, "text", fmtTokens(usage.contextWindow))}`;
   const contextIcon = fgc(theme, stressColor(pct), "📊");
 
-  const reserved = visibleWidth(contextIcon) + visibleWidth(pctText) + visibleWidth(tokensText) + 6;
+  const spacing = 4 + visibleWidth(fgc(theme, "dim", "·"));
+  const reserved = visibleWidth(contextIcon) + visibleWidth(pctText) + visibleWidth(tokensText) + spacing;
   // Bar stretches to fill all remaining width
   const barWidth = Math.max(4, remainingWidth - reserved);
   const bar = renderBar(theme, pct, barWidth);
