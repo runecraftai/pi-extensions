@@ -28,10 +28,34 @@ export interface HeaderConfig {
   tipCount: number;
 }
 
+export type FooterSegmentKey =
+  | "cwd" | "timer" | "gitBranch" | "gitStatus" | "gitCommit"
+  | "runtime" | "contextBar" | "model" | "thinking"
+  | "tokens" | "cost" | "extStatus";
+
+export type FooterZone = "left" | "center" | "right";
+
+export type FooterZoneConfig = Record<FooterSegmentKey, FooterZone>;
+
+export interface FooterSegments {
+  cwd: boolean;
+  timer: boolean;
+  gitBranch: boolean;
+  gitStatus: boolean;
+  gitCommit: boolean;
+  runtime: boolean;
+  contextBar: boolean;
+  model: boolean;
+  thinking: boolean;
+  tokens: boolean;
+  cost: boolean;
+  extStatus: boolean;
+}
+
 export interface FooterConfig {
   enabled: boolean;
-  line1: { segments: string[] };
-  line2: { segments: string[] };
+  segments: FooterSegments;
+  zones: FooterZoneConfig;
   git: { showBranch: boolean; showStatus: boolean; showCommit: boolean };
   context: { showBar: boolean; showCompact: boolean };
   tokens: { showInput: boolean; showOutput: boolean; showCache: boolean };
@@ -74,8 +98,35 @@ export const DEFAULT_HEADER: HeaderConfig = {
 
 const DEFAULT_FOOTER: FooterConfig = {
   enabled: true,
-  line1: { segments: ["cwd", "timer", "git", "runtime", "context_bar"] },
-  line2: { segments: ["model", "thinking", "tokens", "cost", "ext_status"] },
+  segments: {
+    cwd: true,
+    timer: true,
+    gitBranch: true,
+    gitStatus: true,
+    gitCommit: false,
+    runtime: true,
+    contextBar: true,
+    model: true,
+    thinking: true,
+    tokens: true,
+    cost: true,
+    extStatus: true,
+  },
+  zones: {
+    // Layout D: LEFT = project identity, RIGHT = metrics
+    cwd: "left",
+    gitBranch: "left",
+    gitStatus: "left",
+    gitCommit: "left",
+    runtime: "left",
+    timer: "right",
+    contextBar: "right",
+    model: "right",
+    thinking: "right",
+    tokens: "right",
+    cost: "right",
+    extStatus: "right",
+  },
   git: { showBranch: true, showStatus: true, showCommit: false },
   context: { showBar: true, showCompact: false },
   tokens: { showInput: true, showOutput: true, showCache: true },
