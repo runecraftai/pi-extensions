@@ -101,7 +101,10 @@ export default function (pi: ExtensionAPI) {
     activeContext = ctx;
     config = loadConfig();
     const skipAnimation = event.reason === "reload" || event.reason === "resume";
-    setTimeout(() => applyAll(ctx, skipAnimation), 0);
+    setTimeout(() => {
+      if (activeContext !== ctx) return;
+      applyAll(ctx, skipAnimation);
+    }, 0);
   });
 
   pi.on("tool_result", (_event, ctx) => {

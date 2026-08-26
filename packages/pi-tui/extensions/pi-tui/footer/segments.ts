@@ -233,4 +233,5 @@ export const SEGMENT_RENDERERS: Record<string, SegmentRenderer> = {
   tokens: renderTokens,
   cost: renderCost,
   ext_status: renderExtStatus,
+  extStatus: renderExtStatus,
 };

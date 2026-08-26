@@ -25,7 +25,7 @@ function createContext(setFooter: (factory: unknown) => void) {
     sessionManager: { getCwd: () => "/tmp/pi-tui-project", getBranch: () => [] },
     model: { id: "configured-model", contextWindow: 128000 },
     thinkingLevel: "off",
-    getContextUsage: () => undefined,
+    getContextUsage: () => ({ tokens: 50_000, contextWindow: 100_000, percent: 50 }),
   };
 }
 
@@ -45,19 +45,34 @@ describe("pi-tui package registration", () => {
         join(agentDir, "pi-tui.json"),
         JSON.stringify({
           enabled: true,
+          icons: { mode: "ascii" },
           header: { enabled: false },
           footer: {
             enabled: true,
-            line1: { segments: ["context_bar"] },
-            line2: { segments: ["model", "ext_status"] },
+            segments: {
+              cwd: false,
+              timer: false,
+              gitBranch: false,
+              gitStatus: false,
+              gitCommit: false,
+              runtime: false,
+              contextBar: true,
+              model: true,
+              thinking: false,
+              tokens: false,
+              cost: false,
+              extStatus: true,
+            },
+            context: { showBar: true },
           },
         }),
       );
 
       assert.equal(getConfigPath(), join(agentDir, "pi-tui.json"));
       const config = loadConfig();
-      assert.deepEqual(config.footer.line1.segments, ["context_bar"]);
-      assert.deepEqual(config.footer.line2.segments, ["model", "ext_status"]);
+      assert.equal(config.footer.segments.contextBar, true);
+      assert.equal(config.footer.segments.model, true);
+      assert.equal(config.footer.segments.extStatus, true);
 
       let sessionStart: ((event: unknown, ctx: unknown) => void) | undefined;
       let sessionShutdown: ((event: unknown, ctx: unknown) => void) | undefined;
@@ -92,7 +107,10 @@ describe("pi-tui package registration", () => {
           onBranchChange: () => () => {},
         },
       );
-      assert.deepEqual(footer.render(80), ["─".repeat(80), "configured-model configured-status"]);
+      const rendered = footer.render(80);
+      assert.equal(rendered.length, 2);
+      assert.match(rendered[0]!, /50k\/100k/);
+      assert.equal(rendered[1]!.trim(), "configured-model · configured-status");
 
       sessionShutdown?.({}, ctx);
     } finally {
