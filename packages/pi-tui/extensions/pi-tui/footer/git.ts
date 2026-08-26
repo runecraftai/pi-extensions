@@ -82,7 +82,10 @@ export async function readGitStatus(
     if (options.readCounts === false || line.length < 3) continue;
     const x = line[0]!;
     const y = line[1]!;
-    if (x === "U" || y === "U" || (x === "C" && y === "C")) status.conflicted++;
+    if (
+      x === "U" || y === "U" || (x === "C" && y === "C") ||
+      (x === "A" && y === "A") || (x === "D" && y === "D")
+    ) status.conflicted++;
     else if (x === "?" && y === "?") status.untracked++;
     else if (x === "R") status.renamed++;
     else if (x === "D" || y === "D") status.deleted++;

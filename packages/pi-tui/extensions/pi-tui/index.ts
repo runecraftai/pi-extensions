@@ -27,6 +27,7 @@ export default function (pi: ExtensionAPI) {
   const getConfig = () => config;
 
   const refreshGitStatus = async (ctx: ExtensionContext): Promise<void> => {
+    if (ctx.mode !== "tui" || !config.enabled || !config.footer.enabled) return;
     const generation = ++gitRefreshGeneration;
     const cwd = ctx.sessionManager.getCwd();
     const result = await readGitStatus(cwd, {
