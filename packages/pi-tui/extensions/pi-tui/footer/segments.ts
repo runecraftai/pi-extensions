@@ -1,15 +1,12 @@
-/**
- * pi-tui footer segment renderers.
- *
- * Each renderer is a pure function that returns a string (or empty string for no-output).
- * Graceful fallback: no errors when git/context/time info is unavailable.
- */
+/** Pure footer segment renderers shared by the canonical footer pipeline. */
 
 import { execSync } from "node:child_process";
 import type { ReadonlyFooterDataProvider } from "@earendil-works/pi-coding-agent";
-import type { Theme } from "@earendil-works/pi-tui";
-
-/* ── Segment context ── */
+import type { Theme } from "@earendil-works/pi-coding-agent";
+import type { FooterConfig } from "../config.ts";
+import { renderContextBar as renderUsageContextBar, renderContextCompact } from "./context-bar.ts";
+import { iconPrefix, resolveIcon, type SegmentIcons } from "../icons.ts";
+import type { GitStatus } from "./git.ts";
 
 export interface SegmentContext {
   theme: Theme;
@@ -17,249 +14,206 @@ export interface SegmentContext {
   width: number;
   footerData: ReadonlyFooterDataProvider;
   config: {
-    git: { showBranch: boolean; showStatus: boolean; showCommit: boolean };
-    context: { showBar: boolean; showCompact: boolean };
-    tokens: { showInput: boolean; showOutput: boolean; showCache: boolean };
-    telemetry: { enabled: boolean; tps: boolean; ttft: boolean; stalls: boolean };
+    git: FooterConfig["git"];
+    context: FooterConfig["context"];
+    tokens: FooterConfig["tokens"];
+    telemetry: FooterConfig["telemetry"];
+    cost?: FooterConfig["cost"];
+    runtime?: FooterConfig["runtime"];
+    timer?: FooterConfig["timer"];
+    model?: FooterConfig["model"];
+    thinking?: FooterConfig["thinking"];
+    extStatus?: FooterConfig["extStatus"];
   };
-  // Session data
   modelId?: string;
   contextPercent?: number | null;
   contextWindow?: number;
+  contextUsage?: { tokens: number; contextWindow: number; percent?: number | null };
   usage?: { input: number; output: number; cacheRead: number; cacheWrite: number; cost: number };
   thinkingLevel?: string;
-  startTime?: number; // Process start time in ms
+  startTime?: number;
+  git?: GitStatus;
+  iconMode?: string;
+  iconOverrides?: Partial<SegmentIcons>;
 }
 
-/* ── Segment renderers ── */
+function segmentIcon(ctx: SegmentContext, segment: keyof SegmentIcons, configured?: string): string {
+  if (!ctx.iconMode || ctx.iconMode === "ascii") return "";
+  const overrides = { ...(ctx.iconOverrides ?? {}) };
+  if (configured !== undefined) overrides[segment] = configured;
+  return iconPrefix(ctx.theme, overrides, segment);
+}
 
-/**
- * cwd: Current working directory with git branch.
- */
+function iconDisabled(ctx: SegmentContext, segment: keyof SegmentIcons, configured?: string): boolean {
+  return configured === "" || (configured === undefined && ctx.iconOverrides?.[segment] === "");
+}
+
 export function renderCwd(ctx: SegmentContext): string {
   const cwd = ctx.cwd || ".";
-  const branch = ctx.footerData.getGitBranch();
-  if (branch) {
-    return `${ctx.theme.fg("dim", cwd)} (${ctx.theme.fg("accent", branch)})`;
-  }
-  return ctx.theme.fg("dim", cwd);
+  return `${segmentIcon(ctx, "cwd")}${ctx.theme.fg("dim", cwd)}`;
 }
 
-/**
- * timer: Session elapsed time since process start.
- */
 export function renderTimer(ctx: SegmentContext): string {
-  const startTime = ctx.startTime ?? Date.now();
-  const elapsed = Math.floor((Date.now() - startTime) / 1000);
+  const elapsed = Math.max(0, Math.floor((Date.now() - (ctx.startTime ?? Date.now())) / 1000));
   const hours = Math.floor(elapsed / 3600);
   const minutes = Math.floor((elapsed % 3600) / 60);
-  const seconds = elapsed % 60;
-
-  let timeStr: string;
-  if (hours > 0) {
-    timeStr = `${hours}h${minutes.toString().padStart(2, "0")}m`;
-  } else if (minutes > 0) {
-    timeStr = `${minutes}m${seconds.toString().padStart(2, "0")}s`;
-  } else {
-    timeStr = `${seconds}s`;
-  }
-
-  return ctx.theme.fg("dim", `⏱ ${timeStr}`);
+  const time = hours > 0
+    ? `${hours}h${minutes.toString().padStart(2, "0")}m`
+    : minutes > 0
+      ? `${minutes}m${(elapsed % 60).toString().padStart(2, "0")}s`
+      : `${elapsed}s`;
+  const prefix = segmentIcon(ctx, "timer", ctx.config.timer?.icon);
+  const fallback = iconDisabled(ctx, "timer", ctx.config.timer?.icon) ? "" : prefix || "⏱ ";
+  return `${fallback}${ctx.theme.fg("dim", time)}`;
 }
 
-/**
- * git: Git status info (branch, status, commit).
- */
-export function renderGit(ctx: SegmentContext): string {
-  const parts: string[] = [];
-
-  const branch = ctx.footerData.getGitBranch();
-  if (branch) {
-    parts.push(ctx.theme.fg("accent", `⎇ ${branch}`));
-  }
-
-  if (ctx.config.git.showCommit) {
-    const commit = getGitCommit(ctx.cwd);
-    if (commit) {
-      parts.push(ctx.theme.fg("dim", commit));
-    }
-  }
-
-  return parts.join(" ");
+function branch(ctx: SegmentContext): string | undefined {
+  return ctx.git?.branch ?? ctx.footerData.getGitBranch() ?? undefined;
 }
 
-let cachedCommit: { cwd: string; result: string | null; timestamp: number } | null = null;
-const COMMIT_CACHE_TTL = 5000;
+export function renderGitBranch(ctx: SegmentContext): string {
+  if (!ctx.config.git.showBranch) return "";
+  const value = branch(ctx);
+  const prefix = segmentIcon(ctx, "gitBranch", ctx.config.git?.icon);
+  const fallback = iconDisabled(ctx, "gitBranch", ctx.config.git?.icon) ? "" : prefix || "⎇ ";
+  return value ? `${fallback}${ctx.theme.fg("accent", value)}` : "";
+}
 
-/**
- * Get git commit info (short hash + subject).
- * Caches per cwd for 5 seconds to avoid blocking the render path.
- */
+export function renderGitStatus(ctx: SegmentContext): string {
+  if (!ctx.config.git.showStatus || !ctx.git) return "";
+  const status = ctx.git;
+  const counts = [
+    [status.conflicted, "!"], [status.modified, "~"], [status.staged, "+"],
+    [status.untracked, "?"], [status.renamed, "→"], [status.deleted, "-"],
+    [status.stashed, "$"],
+  ] as const;
+  const text = counts.filter(([count]) => count > 0).map(([count, marker]) => `${marker}${count}`).join(" ");
+  const tracking = status.ahead > 0 || status.behind > 0
+    ? ` ${status.ahead > 0 ? `↑${status.ahead}` : ""}${status.behind > 0 ? `↓${status.behind}` : ""}`
+    : "";
+  const value = `${text}${tracking}`.trim();
+  return value ? `${segmentIcon(ctx, "gitStatus", ctx.config.git?.icon)}${ctx.theme.fg("dim", value)}` : "";
+}
+
+let cachedCommit: { cwd: string; result: string | null; timestamp: number } | undefined;
+
 function getGitCommit(cwd: string): string | null {
   const now = Date.now();
-  if (cachedCommit && cachedCommit.cwd === cwd && now - cachedCommit.timestamp < COMMIT_CACHE_TTL) {
-    return cachedCommit.result;
-  }
+  if (cachedCommit?.cwd === cwd && now - cachedCommit.timestamp < 5000) return cachedCommit.result;
   try {
     const result = execSync("git log -1 --format='%h %s'", {
       cwd,
       timeout: 500,
       stdio: ["pipe", "pipe", "pipe"],
-    });
-    const commit = result.toString().trim();
-    cachedCommit = { cwd, result: commit, timestamp: now };
-    return commit;
+    }).toString().trim() || null;
+    cachedCommit = { cwd, result, timestamp: now };
+    return result;
   } catch {
     cachedCommit = { cwd, result: null, timestamp: now };
     return null;
   }
 }
 
-/**
- * runtime: Process uptime/session duration.
- */
+export function renderGitCommit(ctx: SegmentContext): string {
+  if (!ctx.config.git.showCommit) return "";
+  const value = ctx.git?.commit?.oid
+    ? `${ctx.git.commit.oid.slice(0, 7)}${ctx.git.commit.tag ? ` ${ctx.git.commit.tag}` : ""}${ctx.git.commit.subject ? ` ${ctx.git.commit.subject}` : ""}`
+    : getGitCommit(ctx.cwd);
+  return value ? `${segmentIcon(ctx, "gitCommit", ctx.config.git?.icon)}${ctx.theme.fg("dim", value)}` : "";
+}
+
+/** Combined renderer retained for callers using the legacy `git` registry key. */
+export function renderGit(ctx: SegmentContext): string {
+  return [renderGitBranch(ctx), renderGitStatus(ctx), renderGitCommit(ctx)].filter(Boolean).join(" ");
+}
+
 export function renderRuntime(ctx: SegmentContext): string {
-  const startTime = ctx.startTime ?? Date.now();
-  const elapsed = Math.floor((Date.now() - startTime) / 1000);
+  const elapsed = Math.max(0, Math.floor((Date.now() - (ctx.startTime ?? Date.now())) / 1000));
   const hours = Math.floor(elapsed / 3600);
   const minutes = Math.floor((elapsed % 3600) / 60);
-  const seconds = elapsed % 60;
-
-  let timeStr: string;
-  if (hours > 0) {
-    timeStr = `${hours}h${minutes.toString().padStart(2, "0")}m`;
-  } else if (minutes > 0) {
-    timeStr = `${minutes}m${seconds.toString().padStart(2, "0")}s`;
-  } else {
-    timeStr = `${seconds}s`;
-  }
-
-  return ctx.theme.fg("dim", `uptime: ${timeStr}`);
+  const time = hours > 0
+    ? `${hours}h${minutes.toString().padStart(2, "0")}m`
+    : minutes > 0
+      ? `${minutes}m${(elapsed % 60).toString().padStart(2, "0")}s`
+      : `${elapsed}s`;
+  return `${segmentIcon(ctx, "runtime", ctx.config.runtime?.icon)}${ctx.theme.fg("dim", `uptime: ${time}`)}`;
 }
 
-/**
- * context_bar: Thin separator line when showBar is enabled.
- */
 export function renderContextBar(ctx: SegmentContext): string {
-  if (!ctx.config.context.showBar) {
-    return "";
+  if (!ctx.config.context.showBar && !ctx.config.context.showCompact) return "";
+  const usage = ctx.contextUsage;
+  if (!usage) return ctx.config.context.showBar
+    ? ctx.theme.fg("dim", "─".repeat(Math.max(0, ctx.width)))
+    : "";
+  if (usage.contextWindow <= 0) return "";
+  const icon = ctx.iconMode === "ascii"
+    ? ""
+    : ctx.config.context.icon ?? resolveIcon(ctx.iconOverrides, "contextBar");
+  if (ctx.config.context.showCompact) {
+    return renderContextCompact(ctx.theme, usage.percent ?? 0, icon);
   }
-  return ctx.theme.fg("dim", "─".repeat(ctx.width));
+  return renderUsageContextBar(
+    ctx.theme,
+    usage.percent ?? 0,
+    usage.tokens,
+    usage.contextWindow,
+    ctx.width,
+    icon,
+  );
 }
 
-/**
- * separator: Visual separator character.
- */
-export function renderSeparator(_ctx: SegmentContext): string {
-  return "│";
+export function renderSeparator(ctx: SegmentContext): string {
+  return ctx.theme.fg("dim", "│");
 }
 
-/**
- * stale_runtime: Show stale data age (time since last significant change).
- * Since we don't track "significant changes", we show session uptime as a proxy.
- */
 export function renderStaleRuntime(ctx: SegmentContext): string {
-  const startTime = ctx.startTime ?? Date.now();
-  const elapsed = Math.floor((Date.now() - startTime) / 1000);
-  const minutes = Math.floor(elapsed / 60);
-
-  if (minutes < 1) {
-    return ctx.theme.fg("dim", "stale: <1m");
-  }
-
-  if (minutes < 60) {
-    return ctx.theme.fg("dim", `stale: ${minutes}m`);
-  }
-
-  const hours = Math.floor(minutes / 60);
-  const remainMinutes = minutes % 60;
-  return ctx.theme.fg("dim", `stale: ${hours}h${remainMinutes.toString().padStart(2, "0")}m`);
+  const minutes = Math.max(0, Math.floor((Date.now() - (ctx.startTime ?? Date.now())) / 60000));
+  const value = minutes < 1 ? "<1m" : minutes < 60 ? `${minutes}m` : `${Math.floor(minutes / 60)}h${(minutes % 60).toString().padStart(2, "0")}m`;
+  return ctx.theme.fg("dim", `stale: ${value}`);
 }
 
-/**
- * model: Current model name.
- */
 export function renderModel(ctx: SegmentContext): string {
-  return ctx.modelId ?? "no-model";
+  return `${segmentIcon(ctx, "model", ctx.config.model?.icon)}${ctx.modelId ?? "no-model"}`;
 }
 
-/**
- * thinking: Thinking/reasoning level.
- */
 export function renderThinking(ctx: SegmentContext): string {
-  if (!ctx.thinkingLevel || ctx.thinkingLevel === "off") {
-    return "";
-  }
-  return ctx.theme.fg("dim", `thinking: ${ctx.thinkingLevel}`);
+  if (!ctx.thinkingLevel || ctx.thinkingLevel === "off") return "";
+  return `${segmentIcon(ctx, "thinking", ctx.config.thinking?.icon)}${ctx.theme.fg("dim", `thinking: ${ctx.thinkingLevel}`)}`;
 }
 
-/**
- * tokens: Token usage stats.
- */
 export function renderTokens(ctx: SegmentContext): string {
   if (!ctx.usage) return "";
-
   const parts: string[] = [];
-
-  if (ctx.config.tokens.showInput && ctx.usage.input) {
-    parts.push(`↑${formatTokens(ctx.usage.input)}`);
-  }
-
-  if (ctx.config.tokens.showOutput && ctx.usage.output) {
-    parts.push(`↓${formatTokens(ctx.usage.output)}`);
-  }
-
-  if (ctx.config.tokens.showCache) {
-    if (ctx.usage.cacheRead) {
-      parts.push(`R${formatTokens(ctx.usage.cacheRead)}`);
-    }
-    if (ctx.usage.cacheWrite) {
-      parts.push(`W${formatTokens(ctx.usage.cacheWrite)}`);
-    }
-  }
-
+  if (ctx.config.tokens.showInput && ctx.usage.input) parts.push(`${segmentIcon(ctx, "tokenInput", ctx.config.tokens.inputIcon)}↑${formatTokens(ctx.usage.input)}`);
+  if (ctx.config.tokens.showOutput && ctx.usage.output) parts.push(`${segmentIcon(ctx, "tokenOutput", ctx.config.tokens.outputIcon)}↓${formatTokens(ctx.usage.output)}`);
+  if (ctx.config.tokens.showCache && ctx.usage.cacheRead) parts.push(`${segmentIcon(ctx, "cacheHit", ctx.config.tokens.cacheIcon)}R${formatTokens(ctx.usage.cacheRead)}`);
+  if (ctx.config.tokens.showCache && ctx.usage.cacheWrite) parts.push(`W${formatTokens(ctx.usage.cacheWrite)}`);
   return parts.join(" ");
 }
 
-/**
- * cost: Token cost.
- */
 export function renderCost(ctx: SegmentContext): string {
-  if (!ctx.usage?.cost) return "";
-  return `$${ctx.usage.cost.toFixed(3)}`;
+  return ctx.usage?.cost ? `${segmentIcon(ctx, "cost", ctx.config.cost?.icon)}$${ctx.usage.cost.toFixed(3)}` : "";
 }
 
-/**
- * ext_status: Extension statuses.
- */
 export function renderExtStatus(ctx: SegmentContext): string {
-  const statuses = ctx.footerData.getExtensionStatuses();
-  if (statuses.size === 0) return "";
-
-  return Array.from(statuses.entries())
+  const statuses = Array.from(ctx.footerData.getExtensionStatuses().entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([, text]) => sanitizeStatusText(text))
-    .join(" ");
+    .filter(Boolean);
+  return statuses.length ? `${segmentIcon(ctx, "extensionStatus", ctx.config.extStatus?.icon)}${statuses.join(" ")}` : "";
 }
-
-/* ── Helpers ── */
 
 function formatTokens(count: number): string {
   if (count < 1000) return count.toString();
   if (count < 10000) return `${(count / 1000).toFixed(1)}k`;
-  if (count < 1000000) return `${Math.round(count / 1000)}k`;
-  if (count < 10000000) return `${(count / 1000000).toFixed(1)}M`;
-  return `${Math.round(count / 1000000)}M`;
+  if (count < 1_000_000) return `${Math.round(count / 1000)}k`;
+  if (count < 10_000_000) return `${(count / 1_000_000).toFixed(1)}M`;
+  return `${Math.round(count / 1_000_000)}M`;
 }
 
 function sanitizeStatusText(text: string): string {
-  return text
-    .replace(/[\r\n\t]/g, " ")
-    .replace(/ +/g, " ")
-    .trim();
+  return text.replace(/[\r\n\t]/g, " ").replace(/ +/g, " ").trim();
 }
-
-/* ── Segment registry ── */
 
 export type SegmentRenderer = (ctx: SegmentContext) => string;
 
@@ -267,6 +221,9 @@ export const SEGMENT_RENDERERS: Record<string, SegmentRenderer> = {
   cwd: renderCwd,
   timer: renderTimer,
   git: renderGit,
+  gitBranch: renderGitBranch,
+  gitStatus: renderGitStatus,
+  gitCommit: renderGitCommit,
   runtime: renderRuntime,
   context_bar: renderContextBar,
   separator: renderSeparator,

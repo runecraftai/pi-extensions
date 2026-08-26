@@ -8,9 +8,9 @@ This file is the project's committed base for project-intrinsic agent knowledge:
 
 **Config strategy:** The config system uses `deepMerge()` to combine user overrides with defaults. This means users can provide partial config objects (only the fields they customize), making the config forward-compatible when new fields are added. See `config.ts` for default values.
 
-**Future config fields:** `footer.git.*`, `footer.tokens.*`, `footer.telemetry.*`, `editor.roundedBorders`, and `colors.overrides` are defined in the schema but not yet used—they're reserved for Phase 3+ features. Do not remove them.
+**Reserved config fields:** `footer.telemetry.*`, `editor.roundedBorders`, and `colors.overrides` remain schema placeholders for later phases. Do not remove them.
 
-**Footer rendering:** Segments use priority-based degradation for narrow terminals; see `footer/index.ts` PRIORITY constant. Line 1 includes CWD, git branch, runtime, and context bar; Line 2 includes model, thinking, tokens, and extension status.
+**Footer rendering:** The canonical pipeline is in `footer/index.ts`; it uses `FOOTER_PRIORITY`, async Git snapshots, Nerd Font icon resolution, and a context bar that fills remaining line-1 width.
 
 ## Maintaining this file
 

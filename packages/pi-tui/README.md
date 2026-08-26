@@ -1,17 +1,16 @@
 # @runecraft/pi-tui
 
-Customizable TUI extension for [pi](https://pi.dev) — header, footer, editor, and context view in one configurable package.
+Customizable TUI extension for [pi](https://pi.dev) with an animated header, configurable footer, and interactive settings.
 
 ## Features
 
-- **Animated Logo** — 14-frame animation with 9-color palette, IBM stripes, and Minecraft gradient support
-- **Info Bar** — Displays pi version, model, thinking effort, and system stats
-- **Tips Panel** — Random command suggestions to improve discoverability
-- **Starship-style Footer** — 2-line footer with CWD, git branch, runtime, context bar, model, tokens, and extension status
-- **Full-width Footer** — Segments are left-packed; the context bar or filler stretches to consume remaining width so the footer reaches the right edge
-- **Interactive Settings UI** — `/pi-tui` opens a tabbed settings dialog (General / Appearance / Footer)
-- **Config System** — JSON schema with load/save/defaults at `~/.pi/agent/pi-tui.json`
-- **/pi-tui reload** — Hot-reload configuration without restarting pi
+- **Animated Logo and Info Bar** — Pi version, model, thinking effort, and system stats
+- **Configurable Nerd Font Icons** — Header and footer icons support per-segment overrides; set an icon to `""` to disable it
+- **Two-Line Footer** — Configurable left, center, and right zones; by default, project identity is left-packed and the context bar fills the remaining width
+- **Smart Context Bar** — Smart/warm/dumb zones at 40% and 70% context usage, plus a compact mode
+- **Async Git Status** — Branch, ahead/behind, staged, modified, untracked, renamed, deleted, conflicted, and stash counts
+- **Priority Degradation** — Lower-priority footer segments are dropped first on narrow terminals
+- **Interactive Settings** — `/pi-tui` opens General, Appearance, and Footer settings; `/pi-tui reload` reloads the JSON config
 
 ## Installation
 
@@ -29,40 +28,23 @@ npm link
 pi -e ./extensions/pi-tui/index.ts
 ```
 
-## Usage
+## Configuration
 
-### Interactive Settings
-
-Run `/pi-tui` to open the settings dialog. Use **Tab** / **←** / **→** to switch between tabs, **↑** / **↓** to navigate, and **Enter** / **Space** to toggle values. Press **Esc** or **q** to close.
-
-**Tabs:**
-- **General** — Enable/disable the extension, header, and footer
-- **Appearance** — Icon mode (Auto / Nerd / ASCII), cursor style, context bar options
-- **Footer** — Toggle individual footer segments (CWD, git branch, runtime, context bar, model, thinking, tokens, extension status)
-
-### Configuration
-
-Create or edit `~/.pi/agent/pi-tui.json`:
+Create or edit `~/.pi/agent/pi-tui.json`. Partial objects are supported; omitted values use defaults.
 
 ```json
 {
   "enabled": true,
   "header": {
     "enabled": true,
-    "animateLogo": true,
-    "logoColor": "c",
-    "logoSpeed": 50,
-    "ibmStripes": true,
-    "minecraftGradient": true,
-    "slogan": "Code something that makes you proud",
-    "showSlogan": true,
-    "sloganColor": true,
     "showVersion": true,
     "showModel": true,
     "showCwd": true,
-    "showTips": true,
-    "showStatsBar": true,
-    "tipCount": 3
+    "icons": {
+      "version": "󱅴",
+      "model": "󰀫",
+      "cwd": ""
+    }
   },
   "footer": {
     "enabled": true,
@@ -80,87 +62,81 @@ Create or edit `~/.pi/agent/pi-tui.json`:
       "cost": true,
       "extStatus": true
     },
-    "context": {
-      "showBar": true,
-      "showCompact": false
-    }
+    "zones": {
+      "cwd": "left",
+      "gitBranch": "left",
+      "gitStatus": "left",
+      "gitCommit": "left",
+      "runtime": "left",
+      "timer": "right",
+      "contextBar": "right",
+      "model": "right",
+      "thinking": "right",
+      "tokens": "right",
+      "cost": "right",
+      "extStatus": "right"
+    },
+    "git": { "showBranch": true, "showStatus": true, "showCommit": false },
+    "context": { "showBar": true, "showCompact": false },
+    "tokens": { "showInput": true, "showOutput": true, "showCache": true }
   },
-  "icons": {
-    "mode": "auto"
-  }
+  "icons": { "mode": "auto", "custom": {} }
 }
 ```
 
-### Reload
+`icons.mode` accepts `auto`, `nerd`, or `ascii`. `auto` uses the Nerd Font glyph path like `nerd`; it does not detect terminal capability, so choose `ascii` for an ASCII-safe fallback. `ascii` disables Nerd Font prefixes while retaining the existing text markers. `icons.custom` is a global override map; segment-specific settings take precedence.
 
-```bash
-/pi-tui reload
-```
+### Icon options
 
-### Settings Options
+Header icons are configured under `header.icons`: `version`, `model`, `skills`, `prompts`, `extensions`, and `cwd`.
 
-| Option | Values | Notes |
-| --- | --- | --- |
-| `enabled` | `true` / `false` | Master switch for the extension |
-| `header.enabled` | `true` / `false` | Show/hide the header |
-| `footer.enabled` | `true` / `false` | Show/hide the footer |
-| `icons.mode` | `auto`, `nerd`, `ascii` | Controls icon rendering |
-| `editor.cursorStyle` | `block`, `bar`, `underline` | Editor cursor style |
-| `footer.segments.*` | `true` / `false` | Individual footer segment toggles |
-| `footer.zones.*` | `left`, `center`, `right` | Zone assignment per segment |
-| `footer.context.showBar` | `true` / `false` | Full context bar in footer |
-| `footer.context.showCompact` | `true` / `false` | Compact context fallback |
+Footer icon options are configured on the matching footer object:
 
-### Footer Segments
+| Segment | Config key |
+| --- | --- |
+| Git branch/status/commit | `footer.git.icon` |
+| Timer | `footer.timer.icon` |
+| Runtime | `footer.runtime.icon` |
+| Context bar | `footer.context.icon` |
+| Model | `footer.model.icon` |
+| Thinking | `footer.thinking.icon` |
+| Token input/output/cache | `footer.tokens.inputIcon`, `outputIcon`, `cacheIcon` |
+| Cost | `footer.cost.icon` |
+| Extension status | `footer.extStatus.icon` |
+
+Set any icon to `""` to suppress it.
+
+### Footer layout
+
+The footer uses `left`, `center`, and `right` zones. Assign each segment with
+`footer.zones`; the settings dialog cycles a selected segment's zone when you
+press **Enter**.
+
+### Footer segments
 
 | Segment | Description |
 | --- | --- |
-| `cwd` | Current working directory (truncated to fit) |
-| `gitBranch` | Current git branch |
-| `runtime` | Detected runtime version |
-| `contextBar` | Context usage bar with percentage and token counts |
-| `model` | Current model name and provider |
+| `cwd` | Current working directory |
+| `timer` | Session elapsed timer |
+| `gitBranch` | Current branch |
+| `gitStatus` | Working-tree and ahead/behind indicators |
+| `gitCommit` | Short latest commit and tag when configured |
+| `runtime` | Session uptime |
+| `contextBar` | Context usage visualization |
+| `model` | Current model |
 | `thinking` | Current thinking level |
-| `tokens` | Token usage summary |
-| `extStatus` | Extension status line |
+| `tokens` | Input, output, and cache usage |
+| `cost` | Session cost |
+| `extStatus` | Extension status values |
 
-## Footer Layout
+The default footer packs line 1 as `cwd`, Git segments, and runtime, then
+expands the context bar into the remaining width on the right. Line 2
+right-aligns model, thinking, tokens, cost, and extension status. Priority order
+is defined by `FOOTER_PRIORITY` in `extensions/pi-tui/footer/index.ts`.
 
-The footer uses a **three-zone layout**: each line is divided into LEFT, CENTER, and RIGHT zones. Segments are assigned to zones via `footer.zones` in the config.
+## Settings
 
-- **LEFT zone** renders from the left edge
-- **CENTER zone** sits in the middle
-- **RIGHT zone** renders flush to the right edge
-
-Zones with no content take no space. Adjacent active zones are separated by ` · `.
-
-```
-📁 ~/project · 🔀 main · ⬢ v22.0.0  ·  📊 [████░░░░] 65.2%  ·  🤖 claude · ⬆ 12k/200k
-```
-
-Default zone assignments (Layout D — *Esquerda + Direita*):
-
-| Zone | Segments |
-| --- | --- |
-| Left | cwd, git branch/status/commit, runtime (project identity) |
-| Right | timer, context bar, model, thinking, tokens, cost, extension status (metrics) |
-
-The context bar renders compact within the right zone — it does not stretch to the terminal edge.
-
-Zones are configurable in the JSON config and via the `/pi-tui` settings dialog (Footer tab — Enter cycles the zone for the selected segment).
-
-When the terminal is narrow, segments are degraded in priority order:
-
-1. Extension status (lowest priority — dropped first)
-2. Git commit, git status, runtime
-3. Timer, thinking, tokens, cost
-4. Git branch, context bar, CWD, model (highest priority — last to drop)
-
-## Planned Phases
-
-- **Phase 3** — Editor customization
-- **Phase 4** — Context view and advanced stats
-- **Phase 5** — Turn telemetry (TPS, TTFT, stalls)
+Run `/pi-tui` to open the settings dialog. **Tab** / **←** / **→** switch tabs, **↑** / **↓** navigate, **Space** toggles values, **Enter** cycles footer zones, and **Esc** / **q** closes the dialog.
 
 ## License
 

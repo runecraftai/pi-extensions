@@ -4,6 +4,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { registerSettingsCommand } from "../extensions/pi-tui/settings/settings-command.ts";
 
 /* ── Simulated extension API ── */
 
@@ -51,29 +52,6 @@ function createMockCtx(overrides: Record<string, any> = {}) {
     getCustomCalled: () => customCalled,
     ...overrides,
   };
-}
-
-function registerSettingsCommand(
-  pi: ReturnType<typeof createMockPI>,
-  hooks: { getConfig: () => any; onConfigChanged: (config: any) => void },
-) {
-  pi.registerCommand("pi-tui", {
-    description: "Open the pi-tui settings UI, or use /pi-tui reload",
-    handler: async (args: string, ctx: any) => {
-      const subcommand = args?.trim() ?? "";
-      if (subcommand === "reload") {
-        hooks.onConfigChanged(hooks.getConfig());
-        ctx.ui.notify("TUI reloaded from config", "info");
-        return;
-      }
-      if (subcommand !== "") {
-        ctx.ui.notify(`Unknown /pi-tui subcommand: "${subcommand}". Available: settings, reload`, "warning");
-        return;
-      }
-      if (!ctx.hasUI) return;
-      await ctx.ui.custom(undefined, { overlay: true });
-    },
-  });
 }
 
 /* ── Tests ── */

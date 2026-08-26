@@ -9,6 +9,7 @@ import { VERSION } from "@earendil-works/pi-coding-agent";
 import type { ExtensionAPI, ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import type { HeaderConfig } from "../config.ts";
+import { iconPrefix } from "../icons.ts";
 import { CMAP } from "./logo.ts";
 
 /* ── Stats collection ── */
@@ -46,6 +47,7 @@ export function renderInfoBar(
   const muted = (s: string) => theme.fg("muted", s);
   const dim = (s: string) => theme.fg("dim", s);
   const bold = (s: string) => theme.bold(s);
+  const icon = (segment: Parameters<typeof iconPrefix>[2]): string => iconPrefix(theme, config.icons, segment);
 
   const model = ctx.model?.id ?? "Default";
   const effort = pi.getThinkingLevel();
@@ -56,8 +58,8 @@ export function renderInfoBar(
   // Line 1: Pi version
   if (config.showVersion) {
     const piText = config.logoColor
-      ? `\x1b[${getCmapAnsi(config.logoColor)}mPi\x1b[39m ${muted(`v${VERSION}`)}`
-      : muted(`Pi v${VERSION}`);
+      ? `${icon("version")}\x1b[${getCmapAnsi(config.logoColor)}mPi\x1b[39m ${muted(`v${VERSION}`)}`
+      : `${icon("version")}${muted(`Pi v${VERSION}`)}`;
     lines.push(truncateToWidth(piText, maxWidth));
   }
 
@@ -71,16 +73,16 @@ export function renderInfoBar(
 
   // Line 3: Model and effort
   if (config.showModel) {
-    const modelLine = `${model} · ${effortLabel}${stats.agents ? `  |  ${stats.agents}` : ""}`;
+    const modelLine = `${icon("model")}${model} · ${effortLabel}${stats.agents ? `  |  ${stats.agents}` : ""}`;
     lines.push(truncateToWidth(muted(modelLine), maxWidth));
   }
 
   // Line 4: Stats bar
   if (config.showStatsBar) {
     const parts: string[] = [];
-    if (stats.skills > 0) parts.push(`${stats.skills} skills`);
-    if (stats.prompts > 0) parts.push(`${stats.prompts} prompts`);
-    if (stats.extensions > 0) parts.push(`${stats.extensions} extensions`);
+    if (stats.skills > 0) parts.push(`${icon("skills")}${stats.skills} skills`);
+    if (stats.prompts > 0) parts.push(`${icon("prompts")}${stats.prompts} prompts`);
+    if (stats.extensions > 0) parts.push(`${icon("extensions")}${stats.extensions} extensions`);
     if (parts.length > 0) {
       lines.push(truncateToWidth(muted(parts.join(" · ")), maxWidth));
     }
@@ -88,7 +90,7 @@ export function renderInfoBar(
 
   // Line 5: Cwd
   if (config.showCwd) {
-    lines.push(truncateToWidth(dim(formatCwd(ctx.cwd)), maxWidth));
+    lines.push(truncateToWidth(dim(`${icon("cwd")}${formatCwd(ctx.cwd)}`), maxWidth));
   }
 
   return lines;

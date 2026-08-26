@@ -17,7 +17,7 @@ import {
   visibleWidth,
 } from "@earendil-works/pi-tui";
 import type { FooterSegmentKey, FooterZone, PiTuiConfig } from "../config.ts";
-import { saveConfig } from "../config.ts";
+import { loadConfig, saveConfig } from "../config.ts";
 
 /* ── Tab & copy ── */
 
@@ -66,8 +66,8 @@ const COPY = {
 
 /* ── Config mutators ── */
 
-function toggleField<T extends Record<string, unknown>>(obj: T, key: keyof T): T {
-  return { ...obj, [key]: !obj[key] };
+function toggleField<T, K extends keyof T>(obj: T, key: K): T {
+  return { ...obj, [key]: !(obj[key] as boolean) } as T;
 }
 
 function cycleIconMode(config: PiTuiConfig): PiTuiConfig {
@@ -327,7 +327,7 @@ export function registerSettingsCommand(
       const subcommand = args?.trim() ?? "";
 
       if (subcommand === "reload") {
-        hooks.onConfigChanged(hooks.getConfig());
+        hooks.onConfigChanged(loadConfig());
         ctx.ui.notify("TUI reloaded from config", "info");
         return;
       }

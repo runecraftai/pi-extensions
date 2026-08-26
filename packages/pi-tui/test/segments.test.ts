@@ -10,6 +10,8 @@ import {
   renderCwd,
   renderTimer,
   renderGit,
+  renderGitStatus,
+  renderGitCommit,
   renderRuntime,
   renderContextBar,
   renderSeparator,
@@ -54,11 +56,10 @@ function createMockContext(overrides: Partial<SegmentContext> = {}): SegmentCont
 /* ── Segment renderer tests ── */
 
 describe("renderCwd", () => {
-  it("renders cwd with branch", () => {
+  it("renders cwd without duplicating the separate branch segment", () => {
     const ctx = createMockContext();
     const result = renderCwd(ctx);
-    assert.ok(result.includes("/home/user/project"));
-    assert.ok(result.includes("main"));
+    assert.equal(result, "/home/user/project");
   });
 
   it("renders cwd without branch when git unavailable", () => {
@@ -97,6 +98,24 @@ describe("renderTimer", () => {
 });
 
 describe("renderGit", () => {
+  it("renders async status counts and normal-branch commit", () => {
+    const ctx = createMockContext({
+      config: {
+        ...createMockContext().config,
+        git: { showBranch: true, showStatus: true, showCommit: true },
+      },
+      git: {
+        branch: "main", ahead: 2, behind: 1, modified: 1, untracked: 1,
+        staged: 0, stashed: 2, conflicted: 0, renamed: 0, deleted: 0,
+        commit: { oid: "1234567890abcdef", detached: false, tag: null, subject: "add footer" },
+      },
+    });
+    assert.ok(renderGitStatus(ctx).includes("~1"));
+    assert.ok(renderGitStatus(ctx).includes("$2"));
+    assert.ok(renderGitCommit(ctx).includes("1234567"));
+    assert.ok(renderGitCommit(ctx).includes("add footer"));
+  });
+
   it("renders git branch", () => {
     const ctx = createMockContext();
     const result = renderGit(ctx);
@@ -243,14 +262,13 @@ describe("renderExtStatus", () => {
     const ctx = createMockContext({
       footerData: {
         getGitBranch: () => null,
-        getExtensionStatuses: () => new Map([["ext1", "status1"], ["ext2", "status2"]]),
+        getExtensionStatuses: () => new Map([["ext2", "status2"], ["ext1", "status1"]]),
         getAvailableProviderCount: () => 1,
         onBranchChange: () => () => {},
       },
     });
     const result = renderExtStatus(ctx);
-    assert.ok(result.includes("status1"));
-    assert.ok(result.includes("status2"));
+    assert.equal(result, "status1 status2");
   });
 
   it("renders empty when no statuses", () => {
