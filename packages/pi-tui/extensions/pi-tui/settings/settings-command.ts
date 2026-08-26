@@ -17,7 +17,7 @@ import {
   visibleWidth,
 } from "@earendil-works/pi-tui";
 import type { FooterSegmentKey, FooterZone, PiTuiConfig } from "../config.ts";
-import { saveConfig } from "../config.ts";
+import { loadConfig, saveConfig } from "../config.ts";
 
 /* ── Tab & copy ── */
 
@@ -327,7 +327,7 @@ export function registerSettingsCommand(
       const subcommand = args?.trim() ?? "";
 
       if (subcommand === "reload") {
-        hooks.onConfigChanged(hooks.getConfig());
+        hooks.onConfigChanged(loadConfig());
         ctx.ui.notify("TUI reloaded from config", "info");
         return;
       }

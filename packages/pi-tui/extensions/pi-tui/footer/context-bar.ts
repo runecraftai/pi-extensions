@@ -1,6 +1,7 @@
 /** Context-window smart/warm/dumb visualization used by the footer. */
 
 import type { Theme } from "@earendil-works/pi-coding-agent";
+import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 
 const WARN = 40;
 const DANGER = 70;
@@ -19,6 +20,22 @@ function formatTokens(value: number): string {
   return `${(value / 1_000_000).toFixed(1)}M`;
 }
 
+export function contextBarMinimumWidth(
+  theme: Theme,
+  pct: number,
+  tokens: number,
+  contextWindow: number,
+  icon = "📊",
+): number {
+  const clampedPct = Math.max(0, Math.min(100, pct));
+  const context = zone(clampedPct);
+  const pctText = theme.fg(context.color, `${clampedPct.toFixed(1)}%`);
+  const tokenText = `${formatTokens(tokens)}/${formatTokens(contextWindow)}`;
+  const leftText = `${Math.max(0, context.ceiling - clampedPct).toFixed(0)}% left`;
+  const iconText = icon ? `${theme.fg(context.color, icon)} ` : "";
+  return visibleWidth(`${iconText} ${pctText} ${theme.fg("dim", "·")} ${theme.fg("dim", leftText)} ${theme.fg("dim", tokenText)}`) + 1;
+}
+
 export function renderContextBar(
   theme: Theme,
   pct: number,
@@ -33,8 +50,13 @@ export function renderContextBar(
   const context = zone(clampedPct);
   const pctText = theme.fg(context.color, `${clampedPct.toFixed(1)}%`);
   const tokenText = `${formatTokens(tokens)}/${formatTokens(contextWindow)}`;
-  const fixed = icon.length + pctText.replace(/\x1b\[[0-9;]*m/g, "").length + tokenText.length + 8;
-  const barWidth = Math.max(1, width - fixed);
+  const left = Math.max(0, context.ceiling - clampedPct);
+  const leftText = `${left.toFixed(0)}% left`;
+  const iconText = icon ? `${theme.fg(context.color, icon)} ` : "";
+  const fixedText = `${iconText} ${pctText} ${theme.fg("dim", "·")} ${theme.fg("dim", leftText)} ${theme.fg("dim", tokenText)}`;
+  const fixed = visibleWidth(fixedText);
+  if (width <= fixed) return truncateToWidth(fixedText, width, "…");
+  const barWidth = width - fixed;
   const filled = Math.round((clampedPct / 100) * barWidth);
   const warnPos = Math.round((WARN / 100) * barWidth);
   const dangerPos = Math.round((DANGER / 100) * barWidth);
@@ -45,9 +67,7 @@ export function renderContextBar(
     else bar += theme.fg("dim", "░");
   }
 
-  const left = Math.max(0, context.ceiling - clampedPct);
-  const iconText = icon ? `${theme.fg(context.color, icon)} ` : "";
-  return `${iconText}${bar} ${pctText} ${theme.fg("dim", "·")} ${theme.fg("dim", `${left.toFixed(0)}% left`)} ${theme.fg("dim", tokenText)}`;
+  return `${iconText}${bar} ${pctText} ${theme.fg("dim", "·")} ${theme.fg("dim", leftText)} ${theme.fg("dim", tokenText)}`;
 }
 
 export function renderContextCompact(theme: Theme, pct: number, icon = "📊"): string {

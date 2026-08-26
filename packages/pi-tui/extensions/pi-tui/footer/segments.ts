@@ -4,6 +4,7 @@ import { execSync } from "node:child_process";
 import type { ReadonlyFooterDataProvider } from "@earendil-works/pi-coding-agent";
 import type { Theme } from "@earendil-works/pi-coding-agent";
 import type { FooterConfig } from "../config.ts";
+import { renderContextBar as renderUsageContextBar, renderContextCompact } from "./context-bar.ts";
 import { iconPrefix, resolveIcon, type SegmentIcons } from "../icons.ts";
 import type { GitStatus } from "./git.ts";
 
@@ -27,6 +28,7 @@ export interface SegmentContext {
   modelId?: string;
   contextPercent?: number | null;
   contextWindow?: number;
+  contextUsage?: { tokens: number; contextWindow: number; percent?: number | null };
   usage?: { input: number; output: number; cacheRead: number; cacheWrite: number; cost: number };
   thinkingLevel?: string;
   startTime?: number;
@@ -138,7 +140,26 @@ export function renderRuntime(ctx: SegmentContext): string {
 }
 
 export function renderContextBar(ctx: SegmentContext): string {
-  return ctx.config.context.showBar ? ctx.theme.fg("dim", "─".repeat(Math.max(0, ctx.width))) : "";
+  if (!ctx.config.context.showBar && !ctx.config.context.showCompact) return "";
+  const usage = ctx.contextUsage;
+  if (!usage) return ctx.config.context.showBar
+    ? ctx.theme.fg("dim", "─".repeat(Math.max(0, ctx.width)))
+    : "";
+  if (usage.contextWindow <= 0) return "";
+  const icon = ctx.iconMode === "ascii"
+    ? ""
+    : ctx.config.context.icon ?? resolveIcon(ctx.iconOverrides, "contextBar");
+  if (ctx.config.context.showCompact) {
+    return renderContextCompact(ctx.theme, usage.percent ?? 0, icon);
+  }
+  return renderUsageContextBar(
+    ctx.theme,
+    usage.percent ?? 0,
+    usage.tokens,
+    usage.contextWindow,
+    ctx.width,
+    icon,
+  );
 }
 
 export function renderSeparator(ctx: SegmentContext): string {

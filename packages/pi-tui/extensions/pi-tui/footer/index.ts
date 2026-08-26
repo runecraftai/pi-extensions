@@ -8,9 +8,9 @@
 import type { ExtensionContext, ReadonlyFooterDataProvider, Theme } from "@earendil-works/pi-coding-agent";
 import type { Component } from "@earendil-works/pi-tui";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
-import type { FooterSegmentKey, PiTuiConfig } from "../config.ts";
+import type { FooterSegmentKey, FooterZone, PiTuiConfig } from "../config.ts";
 import { resolveIcon, type SegmentIcons } from "../icons.ts";
-import { renderContextBar, renderContextCompact } from "./context-bar.ts";
+import { contextBarMinimumWidth } from "./context-bar.ts";
 import type { GitStatus } from "./git.ts";
 import {
   SEGMENT_RENDERERS,
@@ -68,27 +68,39 @@ function renderSegment(key: FooterSegmentKey, ctx: SegmentContext): string {
   return renderer ? renderer(ctx) : "";
 }
 
-function renderContextSegment(
-  ctx: ExtensionContext,
-  theme: Theme,
-  width: number,
-  config: PiTuiConfig,
-  iconOverrides: Partial<SegmentIcons>,
-): string {
-  const usage = ctx.getContextUsage();
-  if (!usage || usage.tokens == null || usage.contextWindow <= 0 || width <= 0) return "";
-  const icon = config.footer.context.icon ?? resolveIcon(iconOverrides, "contextBar");
-  if (config.footer.context.showCompact) {
-    return renderContextCompact(theme, usage.percent ?? 0, icon);
+const ZONE_ORDER: FooterZone[] = ["left", "center", "right"];
+
+function normalizeZone(zone: unknown): FooterZone {
+  return zone === "center" || zone === "right" ? zone : "left";
+}
+
+function layoutZones(texts: Record<FooterZone, string>, width: number): string {
+  const left = texts.left;
+  const center = texts.center;
+  const right = texts.right;
+  const leftWidth = visibleWidth(left);
+  const centerWidth = visibleWidth(center);
+  const rightWidth = visibleWidth(right);
+  if (!center && !right) return left;
+  if (!left && !right) return " ".repeat(Math.max(0, Math.floor((width - centerWidth) / 2))) + center;
+  if (!left && !center) return " ".repeat(Math.max(0, width - rightWidth)) + right;
+
+  const separator = visibleWidth(FOOTER_SEPARATOR);
+  const rightStart = Math.max(0, width - rightWidth);
+  const centerStart = center
+    ? Math.max(leftWidth + (left ? separator : 0), Math.floor((width - centerWidth) / 2))
+    : rightStart;
+  const parts: string[] = [];
+  if (left) parts.push(left);
+  if (center) {
+    const start = Math.min(centerStart, rightStart - (right ? separator + centerWidth : centerWidth));
+    parts.push(" ".repeat(Math.max(0, start - leftWidth - (left ? separator : 0))), center);
   }
-  return renderContextBar(
-    theme,
-    usage.percent ?? 0,
-    usage.tokens,
-    usage.contextWindow,
-    width,
-    icon,
-  );
+  if (right) {
+    const used = leftWidth + (left && center ? separator : 0) + centerWidth;
+    parts.push(" ".repeat(Math.max(0, rightStart - used)), right);
+  }
+  return parts.join("");
 }
 
 class PiTuiFooter implements Component {
@@ -132,6 +144,12 @@ class PiTuiFooter implements Component {
       config: config.footer,
       modelId: this.ctx.model?.id,
       contextWindow: this.ctx.model?.contextWindow,
+      contextUsage: (() => {
+        const usage = this.ctx.getContextUsage();
+        return usage && usage.tokens != null
+          ? { tokens: usage.tokens, contextWindow: usage.contextWindow, percent: usage.percent }
+          : undefined;
+      })(),
       usage: getUsage(this.ctx),
       thinkingLevel: this.ctx.thinkingLevel,
       startTime: this.startTime,
@@ -142,23 +160,61 @@ class PiTuiFooter implements Component {
     const enabled = config.footer.segments;
     const line1Keys: FooterSegmentKey[] = ["cwd", "gitBranch", "gitStatus", "gitCommit", "runtime"];
     const line2Keys: FooterSegmentKey[] = ["model", "thinking", "tokens", "cost", "extStatus"];
-    const make = (keys: FooterSegmentKey[], availableWidth: number) => packSegments(
-      keys.filter((key) => enabled[key]).map((key) => ({
-        key,
-        text: renderSegment(key, segmentCtx),
-        priority: FOOTER_PRIORITY[key],
-      })).filter((segment) => segment.text),
-      availableWidth,
-    );
+    const makeZoneTexts = (keys: FooterSegmentKey[], availableWidth: number): Record<FooterZone, string> => {
+      const groups: Record<FooterZone, FooterSegment[]> = { left: [], center: [], right: [] };
+      for (const key of keys) {
+        if (!enabled[key]) continue;
+        const text = renderSegment(key, segmentCtx);
+        if (text) groups[normalizeZone(config.footer.zones[key])].push({
+          key, text, priority: FOOTER_PRIORITY[key],
+        });
+      }
+      return {
+        left: packSegments(groups.left, availableWidth),
+        center: packSegments(groups.center, availableWidth),
+        right: packSegments(groups.right, availableWidth),
+      };
+    };
 
-    let line1 = make(line1Keys, width);
-    if (enabled.contextBar && (config.footer.context.showBar || config.footer.context.showCompact)) {
-      const separator = line1 ? FOOTER_SEPARATOR : "";
-      const available = Math.max(0, width - visibleWidth(line1) - visibleWidth(separator));
-      const context = renderContextSegment(this.ctx, this.theme, available, config, iconOverrides);
-      if (context) line1 += separator + context;
+    const contextUsage = segmentCtx.contextUsage;
+    const contextRequested = enabled.contextBar &&
+      (config.footer.context.showBar || config.footer.context.showCompact) &&
+      contextUsage !== undefined && contextUsage.contextWindow > 0;
+    const contextIcon = config.icons.mode === "ascii"
+      ? ""
+      : config.footer.context.icon ?? resolveIcon(iconOverrides, "contextBar");
+    const contextMinWidth = contextRequested
+      ? contextBarMinimumWidth(
+        this.theme,
+        contextUsage.percent ?? 0,
+        contextUsage.tokens,
+        contextUsage.contextWindow,
+        contextIcon,
+      )
+      : 0;
+    const contextZone = normalizeZone(config.footer.zones.contextBar);
+    const regularWidth = Math.max(0, width - (contextMinWidth ? contextMinWidth + visibleWidth(FOOTER_SEPARATOR) : 0));
+    const regularTexts = makeZoneTexts(line1Keys, regularWidth);
+    let line1: string;
+
+    if (!contextRequested) {
+      line1 = layoutZones(regularTexts, width);
+    } else if (contextZone === "right") {
+      const regularLine = layoutZones(regularTexts, regularWidth);
+      const separator = regularLine ? FOOTER_SEPARATOR : "";
+      const available = Math.max(0, width - visibleWidth(regularLine) - visibleWidth(separator));
+      const context = renderSegment("contextBar", { ...segmentCtx, width: available });
+      line1 = regularLine + separator + context;
+    } else {
+      const context = renderSegment("contextBar", { ...segmentCtx, width: contextMinWidth });
+      const zoneTexts = { ...regularTexts };
+      zoneTexts[contextZone] = zoneTexts[contextZone]
+        ? `${context}${FOOTER_SEPARATOR}${zoneTexts[contextZone]}`
+        : context;
+      line1 = layoutZones(zoneTexts, width);
     }
-    const line2 = make(line2Keys, width);
+
+    const line2 = layoutZones(makeZoneTexts(line2Keys, width), width);
     return [line1, line2]
       .filter(Boolean)
       .map((line) => truncateToWidth(line, width, "…"));
