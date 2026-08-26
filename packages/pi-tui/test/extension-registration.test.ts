@@ -22,8 +22,10 @@ function createContext(setFooter: (factory: unknown) => void) {
       setFooter,
       notify: () => {},
     },
-    sessionManager: { getCwd: () => "/tmp/pi-tui-project" },
+    sessionManager: { getCwd: () => "/tmp/pi-tui-project", getBranch: () => [] },
     model: { id: "configured-model", contextWindow: 128000 },
+    thinkingLevel: "off",
+    getContextUsage: () => undefined,
   };
 }
 
@@ -47,7 +49,7 @@ describe("pi-tui package registration", () => {
           footer: {
             enabled: true,
             line1: { segments: ["context_bar"] },
-            line2: { segments: ["model"] },
+            line2: { segments: ["model", "ext_status"] },
           },
         }),
       );
@@ -55,7 +57,7 @@ describe("pi-tui package registration", () => {
       assert.equal(getConfigPath(), join(agentDir, "pi-tui.json"));
       const config = loadConfig();
       assert.deepEqual(config.footer.line1.segments, ["context_bar"]);
-      assert.deepEqual(config.footer.line2.segments, ["model"]);
+      assert.deepEqual(config.footer.line2.segments, ["model", "ext_status"]);
 
       let sessionStart: ((event: unknown, ctx: unknown) => void) | undefined;
       let sessionShutdown: ((event: unknown, ctx: unknown) => void) | undefined;
@@ -85,12 +87,12 @@ describe("pi-tui package registration", () => {
         theme,
         {
           getGitBranch: () => "main",
-          getExtensionStatuses: () => new Map(),
+          getExtensionStatuses: () => new Map([["status", "configured-status"]]),
           getAvailableProviderCount: () => 1,
           onBranchChange: () => () => {},
         },
       );
-      assert.deepEqual(footer.render(24), ["─".repeat(24), "configured-model"]);
+      assert.deepEqual(footer.render(80), ["─".repeat(80), "configured-model configured-status"]);
 
       sessionShutdown?.({}, ctx);
     } finally {

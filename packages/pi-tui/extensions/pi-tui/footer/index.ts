@@ -57,22 +57,6 @@ export function packSegments(segments: FooterSegment[], maxWidth: number): strin
     .map((segment) => ({ ...segment, text: selectedText.get(segment.key)! })));
 }
 
-function getUsage(ctx: ExtensionContext): SegmentContext["usage"] {
-  try {
-    const session = (ctx as any).session;
-    if (session?.usage) {
-      return {
-        input: session.usage.input ?? 0,
-        output: session.usage.output ?? 0,
-        cacheRead: session.usage.cacheRead ?? 0,
-        cacheWrite: session.usage.cacheWrite ?? 0,
-        cost: session.usage.cost ?? 0,
-      };
-    }
-  } catch { /* Runtime versions without session usage simply omit metrics. */ }
-  return undefined;
-}
-
 function renderSegment(key: FooterSegmentKey, ctx: SegmentContext): string {
   const renderer = SEGMENT_RENDERERS[key] ?? (key === "contextBar" ? SEGMENT_RENDERERS.context_bar : undefined);
   return renderer ? renderer(ctx) : "";
@@ -117,6 +101,7 @@ class PiTuiFooter implements Component {
   private readonly theme: Theme;
   private readonly getConfig: () => PiTuiConfig;
   private readonly getGitStatus: () => GitStatus | undefined;
+  private readonly unsubscribeBranchChange: () => void;
 
   constructor(
     ctx: ExtensionContext,
@@ -124,6 +109,7 @@ class PiTuiFooter implements Component {
     theme: Theme,
     getConfig: () => PiTuiConfig,
     getGitStatus: () => GitStatus | undefined,
+    requestRender: () => void,
   ) {
     this.ctx = ctx;
     this.footerData = footerData;
@@ -131,10 +117,13 @@ class PiTuiFooter implements Component {
     this.getConfig = getConfig;
     this.getGitStatus = getGitStatus;
     this.startTime = Date.now();
+    this.unsubscribeBranchChange = footerData.onBranchChange(() => requestRender());
   }
 
   invalidate(): void {}
-  dispose(): void {}
+  dispose(): void {
+    this.unsubscribeBranchChange();
+  }
 
   render(width: number): string[] {
     const config = this.getConfig();
@@ -157,7 +146,7 @@ class PiTuiFooter implements Component {
           ? { tokens: usage.tokens, contextWindow: usage.contextWindow, percent: usage.percent }
           : undefined;
       })(),
-      usage: getUsage(this.ctx),
+      usage: this.getUsage(),
       thinkingLevel: this.ctx.thinkingLevel,
       startTime: this.startTime,
       git: this.getGitStatus(),
@@ -237,6 +226,34 @@ class PiTuiFooter implements Component {
       .filter(Boolean)
       .map((line) => truncateToWidth(line, width, "…"));
   }
+
+  /** Get cumulative token usage from the supported session branch. */
+  private getUsage(): SegmentContext["usage"] {
+    const usage = {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+      cost: 0,
+    };
+
+    try {
+      for (const entry of this.ctx.sessionManager.getBranch()) {
+        if (entry.type !== "message") continue;
+        if (entry.message.role !== "assistant" && entry.message.role !== "toolResult") continue;
+        const messageUsage = entry.message.usage;
+        usage.input += messageUsage.input ?? 0;
+        usage.output += messageUsage.output ?? 0;
+        usage.cacheRead += messageUsage.cacheRead ?? 0;
+        usage.cacheWrite += messageUsage.cacheWrite ?? 0;
+        usage.cost += messageUsage.cost?.total ?? 0;
+      }
+    } catch {
+      // Graceful fallback: usage data unavailable
+    }
+
+    return usage;
+  }
 }
 
 export function installFooter(
@@ -246,8 +263,9 @@ export function installFooter(
   setRequestRender?: (requestRender: (() => void) | undefined) => void,
 ): () => void {
   ctx.ui.setFooter((tui, theme, footerData) => {
-    setRequestRender?.(() => tui.requestRender());
-    return new PiTuiFooter(ctx, footerData, theme, getConfig, getGitStatus);
+    const requestRender = () => tui.requestRender();
+    setRequestRender?.(requestRender);
+    return new PiTuiFooter(ctx, footerData, theme, getConfig, getGitStatus, requestRender);
   });
   return () => {
     setRequestRender?.(undefined);

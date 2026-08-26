@@ -98,7 +98,7 @@ function twoColumn(
   rightWidth: number,
   paint: (s: string) => string,
 ): string {
-  return `${padRight(left, leftWidth)} ${paint("│")} ${padRight(right, rightWidth, "…")}`;
+  return `${padRight(left, leftWidth)} ${paint("│")} ${padRight(right, rightWidth)}`;
 }
 
 /* ── Header component ── */
