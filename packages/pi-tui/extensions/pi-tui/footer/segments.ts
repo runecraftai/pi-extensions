@@ -57,7 +57,8 @@ export function renderTimer(ctx: SegmentContext): string {
       ? `${minutes}m${(elapsed % 60).toString().padStart(2, "0")}s`
       : `${elapsed}s`;
   const prefix = segmentIcon(ctx, "timer", ctx.config.timer?.icon);
-  return `${prefix || "⏱ "}${ctx.theme.fg("dim", time)}`;
+  const fallback = ctx.config.timer?.icon === "" ? "" : prefix || "⏱ ";
+  return `${fallback}${ctx.theme.fg("dim", time)}`;
 }
 
 function branch(ctx: SegmentContext): string | undefined {
@@ -67,7 +68,9 @@ function branch(ctx: SegmentContext): string | undefined {
 export function renderGitBranch(ctx: SegmentContext): string {
   if (!ctx.config.git.showBranch) return "";
   const value = branch(ctx);
-  return value ? `${segmentIcon(ctx, "gitBranch", ctx.config.git?.icon) || "⎇ "}${ctx.theme.fg("accent", value)}` : "";
+  const prefix = segmentIcon(ctx, "gitBranch", ctx.config.git?.icon);
+  const fallback = ctx.config.git?.icon === "" ? "" : prefix || "⎇ ";
+  return value ? `${fallback}${ctx.theme.fg("accent", value)}` : "";
 }
 
 export function renderGitStatus(ctx: SegmentContext): string {
@@ -168,8 +171,9 @@ export function renderCost(ctx: SegmentContext): string {
 }
 
 export function renderExtStatus(ctx: SegmentContext): string {
-  const statuses = Array.from(ctx.footerData.getExtensionStatuses().values())
-    .map((text) => sanitizeStatusText(text))
+  const statuses = Array.from(ctx.footerData.getExtensionStatuses().entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([, text]) => sanitizeStatusText(text))
     .filter(Boolean);
   return statuses.length ? `${segmentIcon(ctx, "extensionStatus", ctx.config.extStatus?.icon)}${statuses.join(" ")}` : "";
 }

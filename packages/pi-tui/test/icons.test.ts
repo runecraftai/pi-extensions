@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { DEFAULT_ICONS, resolveIcon, type SegmentIcons } from "../extensions/pi-tui/icons.ts";
-import { renderModel, type SegmentContext } from "../extensions/pi-tui/footer/segments.ts";
+import { renderGitBranch, renderModel, renderTimer, type SegmentContext } from "../extensions/pi-tui/footer/segments.ts";
 import { renderInfoBar } from "../extensions/pi-tui/header/info-bar.ts";
 
 const theme = { fg: (_color: string, text: string) => text, bold: (text: string) => text };
@@ -46,6 +46,21 @@ describe("Nerd Font icon resolution", () => {
   it("renders footer icons through the segment renderer", () => {
     assert.equal(renderModel(context({ iconOverrides: { model: "M" } })), "M model");
     assert.equal(renderModel(context({ iconMode: "ascii" })), "model");
+  });
+
+  it("honors explicit empty footer icon overrides", () => {
+    const footerConfig = {
+      ...config,
+      git: { ...config.git, icon: "" },
+      timer: { icon: "" },
+    };
+    const footer = context({
+      config: footerConfig,
+      footerData: { ...footerData, getGitBranch: () => "main" },
+      startTime: Date.now(),
+    });
+    assert.equal(renderGitBranch(footer), "main");
+    assert.equal(renderTimer(footer), "0s");
   });
 
   it("renders configurable header icons and supports disabling them", () => {

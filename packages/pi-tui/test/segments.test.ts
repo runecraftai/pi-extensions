@@ -262,14 +262,13 @@ describe("renderExtStatus", () => {
     const ctx = createMockContext({
       footerData: {
         getGitBranch: () => null,
-        getExtensionStatuses: () => new Map([["ext1", "status1"], ["ext2", "status2"]]),
+        getExtensionStatuses: () => new Map([["ext2", "status2"], ["ext1", "status1"]]),
         getAvailableProviderCount: () => 1,
         onBranchChange: () => () => {},
       },
     });
     const result = renderExtStatus(ctx);
-    assert.ok(result.includes("status1"));
-    assert.ok(result.includes("status2"));
+    assert.equal(result, "status1 status2");
   });
 
   it("renders empty when no statuses", () => {

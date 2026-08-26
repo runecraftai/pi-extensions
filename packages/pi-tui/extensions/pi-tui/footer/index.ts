@@ -123,7 +123,6 @@ class PiTuiFooter implements Component {
 
     const iconOverrides: Partial<SegmentIcons> = {
       ...config.icons.custom,
-      ...config.header.icons,
     };
     const segmentCtx: SegmentContext = {
       theme: this.theme,
