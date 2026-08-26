@@ -25,9 +25,9 @@ export const FOOTER_PRIORITY: Record<FooterSegmentKey, number> = {
 
 type FooterSegment = { key: FooterSegmentKey; text: string; priority: number };
 
-/** Pack the highest-priority segments while retaining their configured order. */
-export function packSegments(segments: FooterSegment[], maxWidth: number): string {
-  if (maxWidth <= 0 || segments.length === 0) return "";
+/** Select the highest-priority segments that fit while retaining their configured order. */
+function selectSegments(segments: FooterSegment[], maxWidth: number): FooterSegment[] {
+  if (maxWidth <= 0 || segments.length === 0) return [];
   const selected: FooterSegment[] = [];
   let selectedWidth = 0;
   for (const segment of [...segments].sort((a, b) => b.priority - a.priority)) {
@@ -41,10 +41,20 @@ export function packSegments(segments: FooterSegment[], maxWidth: number): strin
     selected.push({ ...segment, text });
     selectedWidth += separatorWidth + visibleWidth(text);
   }
-  const selectedKeys = new Set(selected.map((segment) => segment.key));
-  return segments.filter((segment) => selectedKeys.has(segment.key)).map((segment) => {
-    return selected.find((candidate) => candidate.key === segment.key)!.text;
-  }).join(FOOTER_SEPARATOR);
+  return selected;
+}
+
+function joinSegments(segments: FooterSegment[]): string {
+  return segments.map((segment) => segment.text).join(FOOTER_SEPARATOR);
+}
+
+/** Pack the highest-priority segments while retaining their configured order. */
+export function packSegments(segments: FooterSegment[], maxWidth: number): string {
+  const selected = selectSegments(segments, maxWidth);
+  const selectedText = new Map(selected.map((segment) => [segment.key, segment.text]));
+  return joinSegments(segments
+    .filter((segment) => selectedText.has(segment.key))
+    .map((segment) => ({ ...segment, text: selectedText.get(segment.key)! })));
 }
 
 function getUsage(ctx: ExtensionContext): SegmentContext["usage"] {
@@ -68,8 +78,6 @@ function renderSegment(key: FooterSegmentKey, ctx: SegmentContext): string {
   return renderer ? renderer(ctx) : "";
 }
 
-const ZONE_ORDER: FooterZone[] = ["left", "center", "right"];
-
 function normalizeZone(zone: unknown): FooterZone {
   return zone === "center" || zone === "right" ? zone : "left";
 }
@@ -85,19 +93,18 @@ function layoutZones(texts: Record<FooterZone, string>, width: number): string {
   if (!left && !right) return " ".repeat(Math.max(0, Math.floor((width - centerWidth) / 2))) + center;
   if (!left && !center) return " ".repeat(Math.max(0, width - rightWidth)) + right;
 
-  const separator = visibleWidth(FOOTER_SEPARATOR);
   const rightStart = Math.max(0, width - rightWidth);
   const centerStart = center
-    ? Math.max(leftWidth + (left ? separator : 0), Math.floor((width - centerWidth) / 2))
+    ? Math.max(leftWidth, Math.min(
+      Math.floor((width - centerWidth) / 2),
+      rightStart - (right ? centerWidth : 0),
+    ))
     : rightStart;
   const parts: string[] = [];
   if (left) parts.push(left);
-  if (center) {
-    const start = Math.min(centerStart, rightStart - (right ? separator + centerWidth : centerWidth));
-    parts.push(" ".repeat(Math.max(0, start - leftWidth - (left ? separator : 0))), center);
-  }
+  if (center) parts.push(" ".repeat(Math.max(0, centerStart - leftWidth)), center);
   if (right) {
-    const used = leftWidth + (left && center ? separator : 0) + centerWidth;
+    const used = center ? centerStart + centerWidth : leftWidth;
     parts.push(" ".repeat(Math.max(0, rightStart - used)), right);
   }
   return parts.join("");
@@ -169,10 +176,21 @@ class PiTuiFooter implements Component {
           key, text, priority: FOOTER_PRIORITY[key],
         });
       }
+      const selected = selectSegments(
+        [...groups.left, ...groups.center, ...groups.right],
+        availableWidth,
+      );
+      const selectedText = new Map(selected.map((segment) => [segment.key, segment.text]));
       return {
-        left: packSegments(groups.left, availableWidth),
-        center: packSegments(groups.center, availableWidth),
-        right: packSegments(groups.right, availableWidth),
+        left: joinSegments(groups.left
+          .filter((segment) => selectedText.has(segment.key))
+          .map((segment) => ({ ...segment, text: selectedText.get(segment.key)! }))),
+        center: joinSegments(groups.center
+          .filter((segment) => selectedText.has(segment.key))
+          .map((segment) => ({ ...segment, text: selectedText.get(segment.key)! }))),
+        right: joinSegments(groups.right
+          .filter((segment) => selectedText.has(segment.key))
+          .map((segment) => ({ ...segment, text: selectedText.get(segment.key)! }))),
       };
     };
 

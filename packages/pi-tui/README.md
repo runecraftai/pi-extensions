@@ -6,7 +6,7 @@ Customizable TUI extension for [pi](https://pi.dev) with an animated header, con
 
 - **Animated Logo and Info Bar** — Pi version, model, thinking effort, and system stats
 - **Configurable Nerd Font Icons** — Header and footer icons support per-segment overrides; set an icon to `""` to disable it
-- **Two-Line Footer** — Left-packed project identity and session metrics, with a context bar filling the remaining width
+- **Two-Line Footer** — Configurable left, center, and right zones; by default, project identity is left-packed and the context bar fills the remaining width
 - **Smart Context Bar** — Smart/warm/dumb zones at 40% and 70% context usage, plus a compact mode
 - **Async Git Status** — Branch, ahead/behind, staged, modified, untracked, renamed, deleted, conflicted, and stash counts
 - **Priority Degradation** — Lower-priority footer segments are dropped first on narrow terminals
@@ -62,6 +62,20 @@ Create or edit `~/.pi/agent/pi-tui.json`. Partial objects are supported; omitted
       "cost": true,
       "extStatus": true
     },
+    "zones": {
+      "cwd": "left",
+      "gitBranch": "left",
+      "gitStatus": "left",
+      "gitCommit": "left",
+      "runtime": "left",
+      "timer": "right",
+      "contextBar": "right",
+      "model": "right",
+      "thinking": "right",
+      "tokens": "right",
+      "cost": "right",
+      "extStatus": "right"
+    },
     "git": { "showBranch": true, "showStatus": true, "showCommit": false },
     "context": { "showBar": true, "showCompact": false },
     "tokens": { "showInput": true, "showOutput": true, "showCache": true }
@@ -70,7 +84,7 @@ Create or edit `~/.pi/agent/pi-tui.json`. Partial objects are supported; omitted
 }
 ```
 
-`icons.mode` accepts `auto`, `nerd`, or `ascii`. `auto` uses the Nerd Font glyph path like `nerd`; it does not detect terminal capability, so choose `ascii` for an ASCII-safe fallback. `ascii` disables Nerd Font prefixes while retaining the existing text markers. `icons.custom` is a compatibility-wide override map; segment-specific settings take precedence.
+`icons.mode` accepts `auto`, `nerd`, or `ascii`. `auto` uses the Nerd Font glyph path like `nerd`; it does not detect terminal capability, so choose `ascii` for an ASCII-safe fallback. `ascii` disables Nerd Font prefixes while retaining the existing text markers. `icons.custom` is a global override map; segment-specific settings take precedence.
 
 ### Icon options
 
@@ -92,6 +106,12 @@ Footer icon options are configured on the matching footer object:
 
 Set any icon to `""` to suppress it.
 
+### Footer layout
+
+The footer uses `left`, `center`, and `right` zones. Assign each segment with
+`footer.zones`; the settings dialog cycles a selected segment's zone when you
+press **Enter**.
+
 ### Footer segments
 
 | Segment | Description |
@@ -109,7 +129,10 @@ Set any icon to `""` to suppress it.
 | `cost` | Session cost |
 | `extStatus` | Extension status values |
 
-The default footer packs line 1 as `cwd`, Git segments, and runtime, then appends the full-width context bar. Line 2 contains model, thinking, tokens, cost, and extension status. Priority order is defined by `FOOTER_PRIORITY` in `extensions/pi-tui/footer/index.ts`.
+The default footer packs line 1 as `cwd`, Git segments, and runtime, then
+expands the context bar into the remaining width on the right. Line 2
+right-aligns model, thinking, tokens, cost, and extension status. Priority order
+is defined by `FOOTER_PRIORITY` in `extensions/pi-tui/footer/index.ts`.
 
 ## Settings
 

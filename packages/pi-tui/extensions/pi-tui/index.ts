@@ -18,6 +18,7 @@ import { registerSettingsCommand } from "./settings/settings-command.ts";
 
 export default function (pi: ExtensionAPI) {
   let config: PiTuiConfig = loadConfig();
+  let activeContext: ExtensionContext | undefined;
   let cleanupHeader: (() => void) | undefined;
   let cleanupFooter: (() => void) | undefined;
   let gitStatus: GitStatus = emptyGitStatus();
@@ -89,10 +90,15 @@ export default function (pi: ExtensionAPI) {
     onConfigChanged: (newConfig: PiTuiConfig) => {
       config = newConfig;
       saveConfig(config);
+      if (activeContext?.mode === "tui") {
+        uninstallAll();
+        applyAll(activeContext, true);
+      }
     },
   });
 
   pi.on("session_start", (event, ctx) => {
+    activeContext = ctx;
     config = loadConfig();
     const skipAnimation = event.reason === "reload" || event.reason === "resume";
     setTimeout(() => applyAll(ctx, skipAnimation), 0);
@@ -107,6 +113,7 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("session_shutdown", (_event, _ctx) => {
+    activeContext = undefined;
     uninstallAll();
   });
 }
