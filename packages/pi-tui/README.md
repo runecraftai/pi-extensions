@@ -1,6 +1,6 @@
 # @runecraft/pi-tui
 
-Customizable TUI extension for [pi](https://pi.dev) with an animated header, configurable footer, and interactive settings.
+Customizable TUI extension for [pi](https://pi.dev) with an animated header, configurable footer, context view, and interactive settings.
 
 ## Features
 
@@ -154,8 +154,9 @@ is defined by `FOOTER_PRIORITY` in `extensions/pi-tui/footer/index.ts`.
 The footer receives Git branch and extension status data from the third
 `ctx.ui.setFooter` factory argument. Token and cost segments aggregate usage
 from `ctx.sessionManager.getBranch()`, and context usage comes from
-`ctx.getContextUsage()`. If these runtime values are unavailable, the affected
-segment renders empty rather than stopping the extension.
+`ctx.getContextUsage()`. When usage data is unavailable, token and cost segments
+render empty; the context bar falls back to a dim placeholder when configured
+to show a bar.
 
 The published npm artifact may lag the repository source. As external evidence,
 `@runecraft/pi-tui@0.1.1` currently contains only the header entry and does not
