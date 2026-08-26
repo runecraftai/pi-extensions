@@ -2,13 +2,16 @@
   "name": "pi-extensions",
   "version": "0.1.0",
   "private": true,
-  "description": "Monorepo of pi extensions. pi-tui is the first package; graphify-pi will be consolidated here later.",
+  "description": "Monorepo of pi extensions.",
   "type": "module",
   "workspaces": [
     "packages/*"
   ],
   "scripts": {
-    "test": "node --test packages/*/test/**/*.test.ts"
+    "test": "node --test packages/*/test/**/*.test.ts",
+    "test:release": "node --test test/release-config.test.mjs",
+    "changeset:version": "changeset version",
+    "publish:packages": "node scripts/publish-packages.mjs"
   },
   "keywords": [
     "pi",
@@ -19,5 +22,9 @@
   "license": "MIT",
   "engines": {
     "node": ">=22.0.0"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.31.1",
+    "conventional-commits-parser": "^6.4.0"
   }
 }
