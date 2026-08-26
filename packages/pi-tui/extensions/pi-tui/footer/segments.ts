@@ -42,6 +42,10 @@ function segmentIcon(ctx: SegmentContext, segment: keyof SegmentIcons, configure
   return iconPrefix(ctx.theme, overrides, segment);
 }
 
+function iconDisabled(ctx: SegmentContext, segment: keyof SegmentIcons, configured?: string): boolean {
+  return configured === "" || (configured === undefined && ctx.iconOverrides?.[segment] === "");
+}
+
 export function renderCwd(ctx: SegmentContext): string {
   const cwd = ctx.cwd || ".";
   return `${segmentIcon(ctx, "cwd")}${ctx.theme.fg("dim", cwd)}`;
@@ -57,7 +61,7 @@ export function renderTimer(ctx: SegmentContext): string {
       ? `${minutes}m${(elapsed % 60).toString().padStart(2, "0")}s`
       : `${elapsed}s`;
   const prefix = segmentIcon(ctx, "timer", ctx.config.timer?.icon);
-  const fallback = ctx.config.timer?.icon === "" ? "" : prefix || "⏱ ";
+  const fallback = iconDisabled(ctx, "timer", ctx.config.timer?.icon) ? "" : prefix || "⏱ ";
   return `${fallback}${ctx.theme.fg("dim", time)}`;
 }
 
@@ -69,7 +73,7 @@ export function renderGitBranch(ctx: SegmentContext): string {
   if (!ctx.config.git.showBranch) return "";
   const value = branch(ctx);
   const prefix = segmentIcon(ctx, "gitBranch", ctx.config.git?.icon);
-  const fallback = ctx.config.git?.icon === "" ? "" : prefix || "⎇ ";
+  const fallback = iconDisabled(ctx, "gitBranch", ctx.config.git?.icon) ? "" : prefix || "⎇ ";
   return value ? `${fallback}${ctx.theme.fg("accent", value)}` : "";
 }
 

@@ -61,6 +61,14 @@ describe("Nerd Font icon resolution", () => {
     });
     assert.equal(renderGitBranch(footer), "main");
     assert.equal(renderTimer(footer), "0s");
+
+    const globallyDisabled = context({
+      footerData: { ...footerData, getGitBranch: () => "main" },
+      iconOverrides: { gitBranch: "", timer: "" },
+      startTime: Date.now(),
+    });
+    assert.equal(renderGitBranch(globallyDisabled), "main");
+    assert.equal(renderTimer(globallyDisabled), "0s");
   });
 
   it("renders configurable header icons and supports disabling them", () => {
