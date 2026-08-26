@@ -6,35 +6,49 @@ Monorepo of [pi](https://pi.dev) extensions by Runecraft.
 
 | Package | Description | Install |
 |---------|-------------|---------|
-| [`packages/pi-tui`](./packages/pi-tui) | Customizable TUI — header, footer, editor | `pi install npm:@runecraft/pi-tui` |
+| [`packages/pi-tui`](./packages/pi-tui) | Customizable TUI — header, footer, editor, context view | `pi install npm:@runecraft/pi-tui` |
 | [`packages/graphify-pi`](./packages/graphify-pi) | Knowledge-graph query tools (graphify CLI wrapper) | `pi install npm:@runecraft/graphify-pi` |
+
+> **Forward note:** [graphify-pi](https://github.com/runecraftai/graphify-pi) will be consolidated into this monorepo later. No graphify-related work is planned for this phase.
 
 ## Getting Started
 
-### Install a package
+This is a pnpm/npm workspace monorepo. Each package under `packages/` is a standalone pi extension that can be installed via `pi install` or loaded locally.
+
+### Local package-root invocation
+
+From the repository root:
+
+```bash
+npm install
+pi -e ./packages/pi-tui
+```
+
+Or from the package directory:
+
+```bash
+cd packages/pi-tui
+pi -e .
+```
+
+For direct entry-file testing:
+
+```bash
+pi -e ./packages/pi-tui/extensions/pi-tui/index.ts
+```
+
+### Installing the published package
 
 ```bash
 pi install npm:@runecraft/pi-tui
+```
+
+The package reads `~/.pi/agent/pi-tui.json`. Its configurable footer supports `cwd`, `timer`, `git`, `runtime`, `context_bar`, `separator`, `stale_runtime`, `model`, `thinking`, `tokens`, `cost`, and `ext_status` segments. Run `/tui reload` after editing the file.
+
+### Installing a package
+
+```bash
 pi install npm:@runecraft/graphify-pi
-```
-
-### Manual install with `-e` flag
-
-```bash
-git clone https://github.com/runecraftai/pi-extensions.git
-pi -e pi-extensions/packages/pi-tui
-pi -e pi-extensions/packages/graphify-pi
-```
-
-### Local development
-
-```bash
-git clone https://github.com/runecraftai/pi-extensions.git
-cd pi-extensions
-npm install
-cd packages/pi-tui
-npm link
-pi -e ./extensions
 ```
 
 ## Architecture

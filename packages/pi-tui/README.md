@@ -14,18 +14,33 @@ Customizable TUI extension for [pi](https://pi.dev) with an animated header, con
 
 ## Installation
 
-Once published:
+### Published package
 
 ```bash
 pi install npm:@runecraft/pi-tui
 ```
 
-For local development:
+### Local package root
+
+From the repository root:
+
+```bash
+pi -e ./packages/pi-tui
+```
+
+Or from this package directory:
 
 ```bash
 cd packages/pi-tui
-npm link
-pi -e ./extensions/pi-tui/index.ts
+pi -e .
+```
+
+### Direct entry file
+
+Use this when testing only the extension entry file:
+
+```bash
+pi -e ./packages/pi-tui/extensions/pi-tui/index.ts
 ```
 
 ## Configuration
@@ -133,6 +148,18 @@ The default footer packs line 1 as `cwd`, Git segments, and runtime, then
 expands the context bar into the remaining width on the right. Line 2
 right-aligns model, thinking, tokens, cost, and extension status. Priority order
 is defined by `FOOTER_PRIORITY` in `extensions/pi-tui/footer/index.ts`.
+
+## Runtime dependencies
+
+The footer receives Git branch and extension status data from the third
+`ctx.ui.setFooter` factory argument. Token and cost segments aggregate usage
+from `ctx.sessionManager.getBranch()`, and context usage comes from
+`ctx.getContextUsage()`. If these runtime values are unavailable, the affected
+segment renders empty rather than stopping the extension.
+
+The published npm artifact may lag the repository source. After a fixed release
+is published, install it with the exact source identifier
+`npm:@runecraft/pi-tui` shown above.
 
 ## Settings
 
