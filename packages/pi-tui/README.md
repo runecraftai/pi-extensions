@@ -96,7 +96,7 @@ Set any icon to `""` to suppress it.
 
 | Segment | Description |
 | --- | --- |
-| `cwd` | Current working directory (with branch when available) |
+| `cwd` | Current working directory |
 | `timer` | Session elapsed timer |
 | `gitBranch` | Current branch |
 | `gitStatus` | Working-tree and ahead/behind indicators |

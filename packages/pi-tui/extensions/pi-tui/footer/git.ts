@@ -12,6 +12,7 @@ export interface GitCommitInfo {
   oid: string | null;
   detached: boolean;
   tag: string | null;
+  subject: string | null;
 }
 
 export interface GitStatus {
@@ -59,7 +60,7 @@ export async function readGitStatus(
     if (line.startsWith("## ")) {
       const branchPart = line.slice(3);
       if (branchPart.startsWith("HEAD (no branch)")) {
-        status.commit = { oid: null, detached: true, tag: null };
+        status.commit = { oid: null, detached: true, tag: null, subject: null };
       } else {
         const branchMatch = branchPart.match(/^(\S+?)(?:\.\.\.(\S+))?(?:\s+\[(.+?)\])?$/);
         if (branchMatch) {
@@ -100,13 +101,18 @@ export async function readGitStatus(
   if (options.readCommit) {
     const oid = await gitExec(["rev-parse", "HEAD"], cwd);
     if (oid) {
-      status.commit ??= { oid: null, detached: false, tag: null };
+      status.commit ??= { oid: null, detached: false, tag: null, subject: null };
       status.commit.oid = oid.trim();
+    }
+    const subject = await gitExec(["log", "-1", "--format=%s"], cwd);
+    if (subject !== null) {
+      status.commit ??= { oid: null, detached: false, tag: null, subject: null };
+      status.commit.subject = subject.trim();
     }
     if (options.readTag) {
       const tag = await gitExec(["describe", "--tags", "--exact-match", "HEAD"], cwd);
       if (tag) {
-        status.commit ??= { oid: null, detached: false, tag: null };
+        status.commit ??= { oid: null, detached: false, tag: null, subject: null };
         status.commit.tag = tag.trim();
       }
     }

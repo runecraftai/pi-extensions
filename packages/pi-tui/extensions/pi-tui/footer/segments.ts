@@ -44,9 +44,7 @@ function segmentIcon(ctx: SegmentContext, segment: keyof SegmentIcons, configure
 
 export function renderCwd(ctx: SegmentContext): string {
   const cwd = ctx.cwd || ".";
-  const branch = ctx.footerData.getGitBranch();
-  const branchText = branch ? ` (${ctx.theme.fg("accent", branch)})` : "";
-  return `${segmentIcon(ctx, "cwd")}${ctx.theme.fg("dim", cwd)}${branchText}`;
+  return `${segmentIcon(ctx, "cwd")}${ctx.theme.fg("dim", cwd)}`;
 }
 
 export function renderTimer(ctx: SegmentContext): string {
@@ -78,6 +76,7 @@ export function renderGitStatus(ctx: SegmentContext): string {
   const counts = [
     [status.conflicted, "!"], [status.modified, "~"], [status.staged, "+"],
     [status.untracked, "?"], [status.renamed, "→"], [status.deleted, "-"],
+    [status.stashed, "$"],
   ] as const;
   const text = counts.filter(([count]) => count > 0).map(([count, marker]) => `${marker}${count}`).join(" ");
   const tracking = status.ahead > 0 || status.behind > 0
@@ -109,7 +108,7 @@ function getGitCommit(cwd: string): string | null {
 export function renderGitCommit(ctx: SegmentContext): string {
   if (!ctx.config.git.showCommit) return "";
   const value = ctx.git?.commit?.oid
-    ? `${ctx.git.commit.oid.slice(0, 7)}${ctx.git.commit.tag ? ` ${ctx.git.commit.tag}` : ""}`
+    ? `${ctx.git.commit.oid.slice(0, 7)}${ctx.git.commit.tag ? ` ${ctx.git.commit.tag}` : ""}${ctx.git.commit.subject ? ` ${ctx.git.commit.subject}` : ""}`
     : getGitCommit(ctx.cwd);
   return value ? `${segmentIcon(ctx, "gitCommit", ctx.config.git?.icon)}${ctx.theme.fg("dim", value)}` : "";
 }

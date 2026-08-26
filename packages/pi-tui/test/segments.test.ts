@@ -56,11 +56,10 @@ function createMockContext(overrides: Partial<SegmentContext> = {}): SegmentCont
 /* ── Segment renderer tests ── */
 
 describe("renderCwd", () => {
-  it("renders cwd with branch", () => {
+  it("renders cwd without duplicating the separate branch segment", () => {
     const ctx = createMockContext();
     const result = renderCwd(ctx);
-    assert.ok(result.includes("/home/user/project"));
-    assert.ok(result.includes("main"));
+    assert.equal(result, "/home/user/project");
   });
 
   it("renders cwd without branch when git unavailable", () => {
@@ -107,12 +106,14 @@ describe("renderGit", () => {
       },
       git: {
         branch: "main", ahead: 2, behind: 1, modified: 1, untracked: 1,
-        staged: 0, stashed: 0, conflicted: 0, renamed: 0, deleted: 0,
-        commit: { oid: "1234567890abcdef", detached: false, tag: null },
+        staged: 0, stashed: 2, conflicted: 0, renamed: 0, deleted: 0,
+        commit: { oid: "1234567890abcdef", detached: false, tag: null, subject: "add footer" },
       },
     });
     assert.ok(renderGitStatus(ctx).includes("~1"));
+    assert.ok(renderGitStatus(ctx).includes("$2"));
     assert.ok(renderGitCommit(ctx).includes("1234567"));
+    assert.ok(renderGitCommit(ctx).includes("add footer"));
   });
 
   it("renders git branch", () => {

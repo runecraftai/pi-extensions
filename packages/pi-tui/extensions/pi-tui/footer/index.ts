@@ -153,7 +153,7 @@ class PiTuiFooter implements Component {
     );
 
     let line1 = make(line1Keys, width);
-    if (enabled.contextBar && config.footer.context.showBar) {
+    if (enabled.contextBar && (config.footer.context.showBar || config.footer.context.showCompact)) {
       const separator = line1 ? FOOTER_SEPARATOR : "";
       const available = Math.max(0, width - visibleWidth(line1) - visibleWidth(separator));
       const context = renderContextSegment(this.ctx, this.theme, available, config, iconOverrides);

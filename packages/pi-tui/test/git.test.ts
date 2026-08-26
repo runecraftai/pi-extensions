@@ -24,6 +24,7 @@ describe("async git status", () => {
     const status = await readGitStatus(cwd, { readCommit: true, readCounts: true });
     assert.ok(status.branch);
     assert.ok(status.commit?.oid);
+    assert.equal(status.commit?.subject, "initial");
     assert.equal(status.modified, 1);
     assert.equal(status.untracked, 1);
   });
