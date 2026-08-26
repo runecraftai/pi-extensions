@@ -66,8 +66,8 @@ const COPY = {
 
 /* ── Config mutators ── */
 
-function toggleField<T extends Record<string, unknown>>(obj: T, key: keyof T): T {
-  return { ...obj, [key]: !obj[key] };
+function toggleField<T, K extends keyof T>(obj: T, key: K): T {
+  return { ...obj, [key]: !(obj[key] as boolean) } as T;
 }
 
 function cycleIconMode(config: PiTuiConfig): PiTuiConfig {

@@ -17,8 +17,8 @@ import { pickTips, renderTipsPanel } from "./tips-panel.ts";
 
 /* ── Layout helpers ── */
 
-function padRight(text: string, width: number): string {
-  const clipped = truncateToWidth(text, width, "");
+function padRight(text: string, width: number, ellipsis = ""): string {
+  const clipped = truncateToWidth(text, width, ellipsis);
   return clipped + " ".repeat(Math.max(0, width - visibleWidth(clipped)));
 }
 

@@ -10,6 +10,8 @@ import {
   renderCwd,
   renderTimer,
   renderGit,
+  renderGitStatus,
+  renderGitCommit,
   renderRuntime,
   renderContextBar,
   renderSeparator,
@@ -97,6 +99,22 @@ describe("renderTimer", () => {
 });
 
 describe("renderGit", () => {
+  it("renders async status counts and normal-branch commit", () => {
+    const ctx = createMockContext({
+      config: {
+        ...createMockContext().config,
+        git: { showBranch: true, showStatus: true, showCommit: true },
+      },
+      git: {
+        branch: "main", ahead: 2, behind: 1, modified: 1, untracked: 1,
+        staged: 0, stashed: 0, conflicted: 0, renamed: 0, deleted: 0,
+        commit: { oid: "1234567890abcdef", detached: false, tag: null },
+      },
+    });
+    assert.ok(renderGitStatus(ctx).includes("~1"));
+    assert.ok(renderGitCommit(ctx).includes("1234567"));
+  });
+
   it("renders git branch", () => {
     const ctx = createMockContext();
     const result = renderGit(ctx);
