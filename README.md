@@ -65,6 +65,12 @@ export default function (pi: ExtensionAPI) {
 
 Each package has its own README with package-specific details. See the pi [extension docs](https://pi.dev/docs/extensions) for the full extension API reference.
 
+Package changes are released independently. Use a conventional commit scoped to the package (for example, `feat(pi-tui): ...`); the main-branch release workflow generates a Changeset, opens a version pull request, and publishes only the affected public package after that pull request is merged.
+
+### Release setup
+
+`.github/workflows/release.yml` requires an `NPM_TOKEN` repository secret with publish access to the `@runecraft` packages. GitHub Actions also requests an OIDC token so npm provenance is attached to each publication. The private workspace root is never published. Do not add versions or publish packages manually for normal changes.
+
 ## License
 
 MIT

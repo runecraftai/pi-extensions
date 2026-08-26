@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        env:
+          HUSKY: "0"
+      - run: npm test
+      - run: npm run test:release
+
+  package-check:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: [packages/pi-tui, packages/graphify-pi]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        env:
+          HUSKY: "0"
+      - name: Check package tarball
+        working-directory: ${{ matrix.package }}
+        run: npm pack --dry-run --json
