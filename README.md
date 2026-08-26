@@ -43,7 +43,7 @@ pi -e ./packages/pi-tui/extensions/pi-tui/index.ts
 pi install npm:@runecraft/pi-tui
 ```
 
-The package reads `~/.pi/agent/pi-tui.json`. Its configurable footer supports `cwd`, `timer`, `git`, `runtime`, `context_bar`, `separator`, `stale_runtime`, `model`, `thinking`, `tokens`, `cost`, and `ext_status` segments. Run `/tui reload` after editing the file.
+The package reads `~/.pi/agent/pi-tui.json`. Configure footer segments under `footer.segments` and their `left`, `center`, or `right` placement under `footer.zones`; supported segment keys include `cwd`, `timer`, `gitBranch`, `gitStatus`, `gitCommit`, `runtime`, `contextBar`, `model`, `thinking`, `tokens`, `cost`, and `extStatus`. Run `/pi-tui reload` after editing the file.
 
 ## Footer delivery investigation
 
@@ -104,8 +104,9 @@ affected public packages.
 `.github/workflows/release.yml` requires an `NPM_TOKEN` repository secret with
 publish access to the `@runecraft` packages. GitHub Actions also requests an OIDC
 token so npm provenance is attached to each publication. The private workspace
-root is never published. Do not add versions or publish packages manually for
-normal changes.
+root is never published. A follow-up CI parity workflow publishes a newer local
+`@runecraft/pi-tui` version only when that exact version is absent from npm. Do
+not add versions or publish packages manually for normal changes.
 
 ## License
 

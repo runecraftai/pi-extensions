@@ -157,9 +157,10 @@ from `ctx.sessionManager.getBranch()`, and context usage comes from
 `ctx.getContextUsage()`. If these runtime values are unavailable, the affected
 segment renders empty rather than stopping the extension.
 
-The published npm artifact may lag the repository source. After a fixed release
-is published, install it with the exact source identifier
-`npm:@runecraft/pi-tui` shown above.
+The published npm artifact may lag the repository source. As external evidence,
+`@runecraft/pi-tui@0.1.1` currently contains only the header entry and does not
+include the footer fix. After a fixed release is published, install it with the
+exact source identifier `npm:@runecraft/pi-tui` shown above.
 
 ## Settings
 

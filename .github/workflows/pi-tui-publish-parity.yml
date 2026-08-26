@@ -1,0 +1,49 @@
+name: Publish pi-tui parity
+
+on:
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+    branches: [main]
+
+concurrency:
+  group: pi-tui-publish-parity
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: main
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - id: version
+        shell: bash
+        run: |
+          local_version=$(node -p "require('./packages/pi-tui/package.json').version")
+          published_version=$(npm view "@runecraft/pi-tui" version 2>/dev/null || true)
+          if node - "$local_version" "$published_version" <<'NODE'
+          const [local, published] = process.argv.slice(2).map((value) => value.split('.').map(Number));
+          const newer = !published || local.some((part, index) => part > published[index] || (part === published[index] && local.slice(index + 1).some((value, offset) => value > published[index + offset + 1])));
+          process.exit(newer ? 0 : 1);
+          NODE
+          then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "version=$local_version" >> "$GITHUB_OUTPUT"
+      - if: ${{ steps.version.outputs.publish == 'true' }}
+        run: npm publish ./packages/pi-tui --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: "true"
