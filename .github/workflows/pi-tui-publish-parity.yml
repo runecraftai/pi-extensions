@@ -30,11 +30,11 @@ jobs:
         shell: bash
         run: |
           local_version=$(node -p "require('./packages/pi-tui/package.json').version")
-          published_version=$(npm view "@runecraft/pi-tui" version 2>/dev/null || true)
-          if node - "$local_version" "$published_version" <<'NODE'
-          const [local, published] = process.argv.slice(2).map((value) => value.split('.').map(Number));
-          const newer = !published || local.some((part, index) => part > published[index] || (part === published[index] && local.slice(index + 1).some((value, offset) => value > published[index + offset + 1])));
-          process.exit(newer ? 0 : 1);
+          published_versions=$(npm view "@runecraft/pi-tui" versions --json 2>/dev/null || echo '[]')
+          if node - "$local_version" "$published_versions" <<'NODE'
+          const [local, publishedJson] = process.argv.slice(2);
+          const published = JSON.parse(publishedJson);
+          process.exit((Array.isArray(published) ? published : [published]).includes(local) ? 1 : 0);
           NODE
           then
             echo "publish=true" >> "$GITHUB_OUTPUT"
