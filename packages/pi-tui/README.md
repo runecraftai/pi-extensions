@@ -17,7 +17,7 @@ Customizable TUI extension for [pi](https://pi.dev) with an animated header, con
 Once published:
 
 ```bash
-pi install @runecraft/pi-tui
+pi install npm:@runecraft/pi-tui
 ```
 
 For local development:

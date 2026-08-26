@@ -21,13 +21,13 @@ test("conventional commit types map to independent semver bumps", () => {
 test("publishable packages are selected deterministically", () => {
   assert.deepEqual(
     getPublishablePackages().map((pkg) => pkg.name),
-    ["@runecraft/graphify-pi", "@runecraft/pi-tui"]
+    ["@runecraft/graphify-pi", "@runecraft/pi-tui"],
   );
 });
 
 test("multiline breaking footers produce major bumps", () => {
   const [commit] = parseCommitLog(
-    "abc123\0fix(pi-tui): correct rendering\0\nBREAKING CHANGE: update the extension API\0"
+    "abc123\0fix(pi-tui): correct rendering\0\nBREAKING CHANGE: update the extension API\0",
   );
   assert.equal(determineBump(commit.parsed), "major");
 });
