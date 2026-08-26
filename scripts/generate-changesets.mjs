@@ -10,9 +10,23 @@ export function shouldSkipReleaseCommit(subject) {
 }
 
 export function determineBump(commit) {
-  if (commit.breaking || commit.type === "!" || commit.header?.includes("!:") || commit.body?.includes("BREAKING CHANGE:")) return "major";
+  const breakingNote = commit.notes?.some((note) => /^BREAKING(?: |-)CHANGE$/.test(note.title));
+  if (commit.breaking || breakingNote || commit.type === "!" || commit.header?.includes("!:") || commit.body?.includes("BREAKING CHANGE:") || commit.footer?.includes("BREAKING CHANGE:")) return "major";
   if (commit.type === "feat") return "minor";
   return "patch";
+}
+
+export function parseCommitLog(output) {
+  const fields = output.split("\0");
+  const parser = new CommitParser();
+  const commits = [];
+  for (let index = 0; index + 2 < fields.length; index += 3) {
+    const sha = fields[index].trim();
+    const subject = fields[index + 1];
+    const body = fields[index + 2];
+    commits.push({ sha, parsed: parser.parse(`${subject}\n${body}`) });
+  }
+  return commits;
 }
 
 export function getPublishablePackages(root = process.cwd()) {
@@ -21,7 +35,8 @@ export function getPublishablePackages(root = process.cwd()) {
     .filter((entry) => entry.isDirectory())
     .map((entry) => join(packagesDir, entry.name, "package.json"))
     .map((file) => JSON.parse(readFileSync(file, "utf8")))
-    .filter((pkg) => !pkg.private && pkg.name?.startsWith("@runecraft/"));
+    .filter((pkg) => !pkg.private && pkg.name?.startsWith("@runecraft/"))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 function changedPackages(root, sha) {
@@ -43,12 +58,9 @@ export function buildChangesetContent(changes) {
 export function generate(root = process.cwd()) {
   const headSubject = execFileSync("git", ["log", "-1", "--format=%s"], { cwd: root, encoding: "utf8" }).trim();
   if (shouldSkipReleaseCommit(headSubject)) return new Map();
-  const commits = execFileSync("git", ["log", "--format=%H|||%s|||%b", `${lastRelease(root)}..HEAD`], { cwd: root, encoding: "utf8" }).trim();
-  const parser = new CommitParser();
+  const commits = execFileSync("git", ["log", "--format=%H%x00%s%x00%b%x00", `${lastRelease(root)}..HEAD`], { cwd: root, encoding: "utf8" });
   const changes = new Map();
-  for (const line of commits ? commits.split("\n") : []) {
-    const [sha, subject, body = ""] = line.split("|||");
-    const parsed = parser.parse(`${subject}\n${body}`);
+  for (const { sha, parsed } of parseCommitLog(commits)) {
     if (!parsed.type || !["feat", "fix", "perf", "refactor"].includes(parsed.type)) continue;
     for (const name of changedPackages(root, sha)) {
       const bump = determineBump(parsed);

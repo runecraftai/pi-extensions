@@ -39,4 +39,4 @@ jobs:
           HUSKY: "0"
       - name: Check package tarball
         working-directory: ${{ matrix.package }}
-        run: npm pack --dry-run --json
+        run: node ../../scripts/check-package-tarball.mjs

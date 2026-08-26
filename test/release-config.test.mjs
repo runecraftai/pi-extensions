@@ -1,7 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { determineBump, shouldSkipReleaseCommit } from "../scripts/generate-changesets.mjs";
-import { getPublishablePackages } from "../scripts/publish-packages.mjs";
+import {
+  determineBump,
+  getPublishablePackages,
+  parseCommitLog,
+  shouldSkipReleaseCommit,
+} from "../scripts/generate-changesets.mjs";
 
 test("release commits do not generate another changeset", () => {
   assert.equal(shouldSkipReleaseCommit("chore: version packages"), true);
@@ -14,9 +18,16 @@ test("conventional commit types map to independent semver bumps", () => {
   assert.equal(determineBump({ type: "fix", breaking: true }), "major");
 });
 
-test("publish helper selects only the two public packages", () => {
+test("publishable packages are selected deterministically", () => {
   assert.deepEqual(
     getPublishablePackages().map((pkg) => pkg.name),
     ["@runecraft/graphify-pi", "@runecraft/pi-tui"]
   );
+});
+
+test("multiline breaking footers produce major bumps", () => {
+  const [commit] = parseCommitLog(
+    "abc123\0fix(pi-tui): correct rendering\0\nBREAKING CHANGE: update the extension API\0"
+  );
+  assert.equal(determineBump(commit.parsed), "major");
 });
