@@ -57,8 +57,8 @@ const COPY = {
     extStatus: "Extension status",
   },
   values: {
-    on: "On",
-    off: "Off",
+    on: "[ON]",
+    off: "[OFF]",
     iconModes: { auto: "Auto", nerd: "Nerd", ascii: "ASCII" },
     cursorStyles: { block: "Block", bar: "Bar", underline: "Underline" },
   },
@@ -127,7 +127,7 @@ function buildFooterItems(config: PiTuiConfig): SettingItem[] {
   return order.map((key) => ({
     id: `seg:${key}`,
     label: COPY.labels[key],
-    currentValue: `${f(segs[key])} · ${zones[key] ?? "left"}`,
+    currentValue: `${f(segs[key])} · Zone: ${(zones[key] ?? "left").toUpperCase()}`,
   }));
 }
 
