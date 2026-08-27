@@ -38,10 +38,10 @@ export interface SegmentContext {
 }
 
 function segmentIcon(ctx: SegmentContext, segment: keyof SegmentIcons, configured?: string): string {
-  if (!ctx.iconMode || ctx.iconMode === "ascii") return "";
+  if (!ctx.iconMode) return "";
   const overrides = { ...(ctx.iconOverrides ?? {}) };
   if (configured !== undefined) overrides[segment] = configured;
-  return iconPrefix(ctx.theme, overrides, segment);
+  return iconPrefix(ctx.theme, overrides, segment, ctx.iconMode);
 }
 
 function iconDisabled(ctx: SegmentContext, segment: keyof SegmentIcons, configured?: string): boolean {

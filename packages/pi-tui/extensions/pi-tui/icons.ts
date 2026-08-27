@@ -1,8 +1,9 @@
 /**
  * Configurable icons for pi-tui header and footer segments.
  *
- * Empty-string overrides disable an icon. Default icons use simple ASCII
- * characters that work in any terminal without Nerd Font.
+ * Default icons use Nerd Font for rich visuals. When iconMode is "ascii",
+ * simple ASCII characters are used instead. Empty-string overrides disable
+ * an icon entirely.
  */
 
 export interface SegmentIcons {
@@ -28,22 +29,43 @@ export interface SegmentIcons {
   extensionStatus: string;
 }
 
-export const DEFAULT_ICONS: SegmentIcons = {
-  /* header */
-  version: "π",
-  model: "◆",
-  skills: "★",
-  prompts: "▶",
-  extensions: "●",
+/* Nerd Font icons (used when iconMode is "auto" or "nerd") */
+export const NERD_ICONS: SegmentIcons = {
+  version: "\u{F17C}",   //  (Pi logo)
+  model: "\u{EC19}",     //  
+  skills: "\u{EB64}",    //  
+  prompts: "\u{F15C}",   // ▶
+  extensions: "\u{EB25}", // ●
+  cwd: "\u{F07B}",       //  
+  gitBranch: "\u{F126}", // ⎇
+  gitStatus: "\u{F1D3}", // ●
+  gitCommit: "\u{F1D3}", // ○
+  timer: "\u{F017}",     //  
+  runtime: "\u{F120}",   // ▸
+  contextBar: "\u{E70F}", // ●
+  thinking: "\u{F5DC}",  // ◎
+  tokenInput: "\u{F090}", // ↑
+  tokenOutput: "\u{F08B}", // ↓
+  cacheHit: "\u{F1C0}",  // c
+  cost: "\u{F155}",      // $
+  extensionStatus: "\u{EB25}", // &
+};
+
+/* ASCII icons (used when iconMode is "ascii") */
+export const ASCII_ICONS: SegmentIcons = {
+  version: "pi",
+  model: "M",
+  skills: "*",
+  prompts: ">",
+  extensions: ".",
   cwd: "@",
-  /* footer - matching the screenshot style */
   gitBranch: "*",
-  gitStatus: "●",
-  gitCommit: "○",
-  timer: "○",
-  runtime: "▸",
-  contextBar: "●",
-  thinking: "◎",
+  gitStatus: "+",
+  gitCommit: "~",
+  timer: "o",
+  runtime: ">",
+  contextBar: "%",
+  thinking: "?",
   tokenInput: "^",
   tokenOutput: "v",
   cacheHit: "c",
@@ -51,13 +73,19 @@ export const DEFAULT_ICONS: SegmentIcons = {
   extensionStatus: "&",
 };
 
-/** Resolve a configured icon, preserving an explicit empty-string disable. */
+/**
+ * Resolve icon based on mode.
+ * "auto" or "nerd" → Nerd Font icons
+ * "ascii" → simple ASCII icons
+ */
 export function resolveIcon(
   overrides: Partial<SegmentIcons> | undefined,
   segment: keyof SegmentIcons,
+  mode: string = "auto",
 ): string {
   if (overrides && segment in overrides) return overrides[segment] ?? "";
-  return DEFAULT_ICONS[segment];
+  const base = mode === "ascii" ? ASCII_ICONS : NERD_ICONS;
+  return base[segment];
 }
 
 /** Prefix a label with a styled icon when the resolved icon is enabled. */
@@ -65,7 +93,8 @@ export function iconPrefix(
   theme: { fg: (color: string, text: string) => string },
   overrides: Partial<SegmentIcons> | undefined,
   segment: keyof SegmentIcons,
+  mode: string = "auto",
 ): string {
-  const icon = resolveIcon(overrides, segment);
+  const icon = resolveIcon(overrides, segment, mode);
   return icon ? `${theme.fg("muted", icon)} ` : "";
 }
