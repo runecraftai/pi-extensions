@@ -19,7 +19,6 @@ export interface SegmentContext {
     tokens: FooterConfig["tokens"];
     telemetry: FooterConfig["telemetry"];
     cost?: FooterConfig["cost"];
-    runtime?: FooterConfig["runtime"];
     timer?: FooterConfig["timer"];
     model?: FooterConfig["model"];
     thinking?: FooterConfig["thinking"];
