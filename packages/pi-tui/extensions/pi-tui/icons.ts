@@ -1,8 +1,8 @@
 /**
- * Configurable Nerd Font icons for pi-tui header and footer segments.
+ * Configurable icons for pi-tui header and footer segments.
  *
- * Empty-string overrides disable an icon. The default vocabulary follows the
- * source plugins unified by this extension (pi-open-tui and pi-vitals).
+ * Empty-string overrides disable an icon. Default icons use simple ASCII
+ * characters that work in any terminal without Nerd Font.
  */
 
 export interface SegmentIcons {
@@ -29,24 +29,26 @@ export interface SegmentIcons {
 }
 
 export const DEFAULT_ICONS: SegmentIcons = {
-  version: "\u{F17C}",
-  model: "\u{EC19}",
-  skills: "\u{EB64}",
-  prompts: "\u{F15C}",
-  extensions: "\u{EB25}",
-  cwd: "\u{F07B}",
-  gitBranch: "\u{F126}",
-  gitStatus: "\u{F1D3}",
-  gitCommit: "\u{F1D3}",
-  timer: "\u{F017}",
-  runtime: "\u{F120}",
-  contextBar: "\u{E70F}",
-  thinking: "\u{F5DC}",
-  tokenInput: "\u{F090}",
-  tokenOutput: "\u{F08B}",
-  cacheHit: "\u{F1C0}",
-  cost: "\u{F155}",
-  extensionStatus: "\u{EB25}",
+  /* header */
+  version: "π",
+  model: "◆",
+  skills: "★",
+  prompts: "▶",
+  extensions: "●",
+  cwd: "@",
+  /* footer - matching the screenshot style */
+  gitBranch: "*",
+  gitStatus: "●",
+  gitCommit: "○",
+  timer: "○",
+  runtime: "▸",
+  contextBar: "●",
+  thinking: "◎",
+  tokenInput: "^",
+  tokenOutput: "v",
+  cacheHit: "c",
+  cost: "$",
+  extensionStatus: "&",
 };
 
 /** Resolve a configured icon, preserving an explicit empty-string disable. */
