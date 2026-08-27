@@ -40,8 +40,6 @@ const COPY = {
     footerEnabled: "Footer",
     iconMode: "Icon mode",
     cursorStyle: "Cursor style",
-    showBar: "Context bar (full)",
-    showCompact: "Context compact fallback",
     // Footer segments
     cwd: "CWD",
     timer: "Timer",
@@ -107,12 +105,9 @@ function buildGeneralItems(config: PiTuiConfig): SettingItem[] {
 }
 
 function buildAppearanceItems(config: PiTuiConfig): SettingItem[] {
-  const f = (v: boolean) => (v ? COPY.values.on : COPY.values.off);
   return [
     { id: "iconMode", label: COPY.labels.iconMode, currentValue: COPY.values.iconModes[config.icons.mode as keyof typeof COPY.values.iconModes] ?? config.icons.mode },
     { id: "cursorStyle", label: COPY.labels.cursorStyle, currentValue: COPY.values.cursorStyles[config.editor.cursorStyle] },
-    { id: "showBar", label: COPY.labels.showBar, currentValue: f(config.footer.context.showBar) },
-    { id: "showCompact", label: COPY.labels.showCompact, currentValue: f(config.footer.context.showCompact) },
   ];
 }
 
@@ -148,8 +143,6 @@ function handleSettingChange(tab: Tab, itemId: string, config: PiTuiConfig): PiT
   if (tab === "appearance") {
     if (itemId === "iconMode") return cycleIconMode(config);
     if (itemId === "cursorStyle") return cycleCursorStyle(config);
-    if (itemId === "showBar") return { ...config, footer: { ...config.footer, context: { ...config.footer.context, showBar: !config.footer.context.showBar } } };
-    if (itemId === "showCompact") return { ...config, footer: { ...config.footer, context: { ...config.footer.context, showCompact: !config.footer.context.showCompact } } };
   }
   if (tab === "footer") {
     if (itemId.startsWith("seg:")) {

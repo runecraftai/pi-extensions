@@ -68,7 +68,9 @@ export function renderTimer(ctx: SegmentContext): string {
 }
 
 function branch(ctx: SegmentContext): string | undefined {
-  return ctx.git?.branch ?? ctx.footerData.getGitBranch() ?? undefined;
+  return ctx.git?.branch
+    ?? ctx.footerData.getGitBranch()
+    ?? (ctx.git?.commit?.detached ? "detached" : undefined);
 }
 
 export function renderGitBranch(ctx: SegmentContext): string {

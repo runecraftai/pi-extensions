@@ -42,7 +42,20 @@ describe("canonical footer packing", () => {
     const context = {
       model: { id: "demo-model", contextWindow: 200_000 },
       thinkingLevel: "medium",
-      sessionManager: { getCwd: () => "/workspace/project" },
+      sessionManager: {
+        getCwd: () => "/workspace/project",
+        getBranch: () => [
+          { type: "message", message: { role: "assistant", usage: {
+            input: 1500, output: 500, cacheRead: 200, cacheWrite: 100,
+            cost: { total: 0.123 },
+          } } },
+          { type: "message", message: { role: "toolResult" } },
+          { type: "message", message: { role: "assistant", usage: {
+            input: 500, output: 250, cacheRead: 50, cacheWrite: 25,
+            cost: { total: 0.045 },
+          } } },
+        ],
+      },
       getContextUsage: () => ({ tokens: 80_000, contextWindow: 200_000, percent: 40 }),
       ui: { setFooter: (factory: typeof footerFactory) => { footerFactory = factory; } },
     } as any;
@@ -55,6 +68,7 @@ describe("canonical footer packing", () => {
     const config = structuredClone(DEFAULT_CONFIG);
     config.header.enabled = false;
     config.footer.segments.gitCommit = true;
+    config.footer.git.showCommit = true;
     config.footer.zones = {
       ...config.footer.zones,
       cwd: "center",
@@ -70,11 +84,24 @@ describe("canonical footer packing", () => {
       commit: { oid: "abcdef1234567890", detached: false, tag: null, subject: "demo commit" },
     }));
     const component = footerFactory!({}, { fg: (_color: string, text: string) => text, bold: (text: string) => text }, footerData);
-    const line = component.render(140)[0]!;
+    const rendered = component.render(140);
+    const line = rendered[0]!;
+    const metrics = rendered[1]!;
     assert.ok(visibleWidth(line) <= 140);
     assert.ok(!line.includes("…"));
     assert.ok(line.includes("80k/200k"));
+    assert.ok(line.includes("/workspace/project"));
+    assert.ok(line.includes("main"));
+    assert.ok(line.includes("~1 ?1"));
+    assert.ok(line.includes("abcdef1 demo commit"));
     assert.ok(line.includes("uptime: 0s"));
+    assert.equal(line.match(/0s/g)?.length, 2, "timer segment should be included on line 1");
+    assert.ok(metrics.includes("thinking: medium"));
+    assert.ok(metrics.includes("2.0k"));
+    assert.ok(metrics.includes("750"));
+    assert.ok(metrics.includes("R250"));
+    assert.ok(metrics.includes("W125"));
+    assert.ok(metrics.includes("$0.168"));
   });
 
   it("keeps Git segments visible when cwd is long", () => {

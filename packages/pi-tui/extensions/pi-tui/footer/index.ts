@@ -19,8 +19,8 @@ import {
 
 export const FOOTER_SEPARATOR = " · ";
 export const FOOTER_PRIORITY: Record<FooterSegmentKey, number> = {
-  cwd: 10, model: 9, tokens: 7, timer: 6, gitBranch: 8, gitStatus: 5,
-  gitCommit: 4, runtime: 5, contextBar: 8, thinking: 6, cost: 7, extStatus: 3,
+  cwd: 6, model: 9, tokens: 7, timer: 4, gitBranch: 10, gitStatus: 9,
+  gitCommit: 8, runtime: 5, contextBar: 8, thinking: 6, cost: 7, extStatus: 3,
 };
 
 type FooterSegment = { key: FooterSegmentKey; text: string; priority: number };
@@ -38,8 +38,22 @@ function selectSegments(segments: FooterSegment[], maxWidth: number): FooterSegm
   for (const segment of sorted) {
     const separatorWidth = selected.length ? visibleWidth(FOOTER_SEPARATOR) : 0;
     const available = maxWidth - selectedWidth - separatorWidth;
-    if (available <= 0 || visibleWidth(segment.text) > available) {
+    if (available <= 0) {
       deferred.push(segment);
+      continue;
+    }
+    if (visibleWidth(segment.text) > available) {
+      // Git indicators are useful even when the commit subject or path leaves
+      // little room; keep a compact/truncated indicator instead of dropping it.
+      if (segment.key.startsWith("git")) {
+        const text = truncateToWidth(segment.text, available, "…");
+        if (text) {
+          selected.push({ ...segment, text });
+          selectedWidth += separatorWidth + visibleWidth(text);
+        }
+      } else {
+        deferred.push(segment);
+      }
       continue;
     }
     selected.push(segment);
@@ -116,6 +130,7 @@ class PiTuiFooter implements Component {
   private readonly theme: Theme;
   private readonly getConfig: () => PiTuiConfig;
   private readonly getGitStatus: () => GitStatus | undefined;
+  private readonly timerHandle: ReturnType<typeof setInterval>;
   private readonly unsubscribeBranchChange: () => void;
 
   constructor(
@@ -132,11 +147,14 @@ class PiTuiFooter implements Component {
     this.getConfig = getConfig;
     this.getGitStatus = getGitStatus;
     this.startTime = Date.now();
+    this.timerHandle = setInterval(requestRender, 1000);
+    this.timerHandle.unref?.();
     this.unsubscribeBranchChange = footerData.onBranchChange(() => requestRender());
   }
 
   invalidate(): void {}
   dispose(): void {
+    clearInterval(this.timerHandle);
     this.unsubscribeBranchChange();
   }
 
@@ -164,12 +182,16 @@ class PiTuiFooter implements Component {
       usage: this.getUsage(),
       thinkingLevel: this.ctx.thinkingLevel,
       startTime: this.startTime,
+      // The extension owns the async snapshot; keep it in the segment context so
+      // branch, status, and commit renderers all use the same value.
       git: this.getGitStatus(),
       iconMode: config.icons.mode,
       iconOverrides,
     };
     const enabled = config.footer.segments;
-    const line1Keys: FooterSegmentKey[] = ["cwd", "gitBranch", "gitStatus", "gitCommit", "runtime"];
+    // Keep the two lines independent: the context bar is a line-1-only segment
+    // and must not affect selection of line-2 metrics.
+    const line1Keys: FooterSegmentKey[] = ["cwd", "timer", "gitBranch", "gitStatus", "gitCommit", "runtime"];
     const line2Keys: FooterSegmentKey[] = ["model", "thinking", "tokens", "cost", "extStatus"];
     const makeZoneTexts = (keys: FooterSegmentKey[], availableWidth: number): Record<FooterZone, string> => {
       const groups: Record<FooterZone, FooterSegment[]> = { left: [], center: [], right: [] };
@@ -258,6 +280,7 @@ class PiTuiFooter implements Component {
         if (entry.type !== "message") continue;
         if (entry.message.role !== "assistant" && entry.message.role !== "toolResult") continue;
         const messageUsage = entry.message.usage;
+        if (!messageUsage) continue;
         usage.input += messageUsage.input ?? 0;
         usage.output += messageUsage.output ?? 0;
         usage.cacheRead += messageUsage.cacheRead ?? 0;
