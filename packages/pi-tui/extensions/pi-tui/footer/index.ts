@@ -20,7 +20,7 @@ import {
 export const FOOTER_SEPARATOR = " · ";
 export const FOOTER_PRIORITY: Record<FooterSegmentKey, number> = {
   cwd: 6, model: 9, tokens: 7, timer: 4, gitBranch: 10, gitStatus: 9,
-  gitCommit: 8, runtime: 5, contextBar: 8, thinking: 6, cost: 7, extStatus: 3,
+  gitCommit: 8, contextBar: 8, thinking: 6, cost: 7, extStatus: 3,
 };
 
 type FooterSegment = { key: FooterSegmentKey; text: string; priority: number };

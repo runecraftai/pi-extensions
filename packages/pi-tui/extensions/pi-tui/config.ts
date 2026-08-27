@@ -32,7 +32,7 @@ export interface HeaderConfig {
 
 export type FooterSegmentKey =
   | "cwd" | "timer" | "gitBranch" | "gitStatus" | "gitCommit"
-  | "runtime" | "contextBar" | "model" | "thinking"
+  | "contextBar" | "model" | "thinking"
   | "tokens" | "cost" | "extStatus";
 
 export type FooterZone = "left" | "center" | "right";
@@ -45,7 +45,6 @@ export interface FooterSegments {
   gitBranch: boolean;
   gitStatus: boolean;
   gitCommit: boolean;
-  runtime: boolean;
   contextBar: boolean;
   model: boolean;
   thinking: boolean;
@@ -120,7 +119,6 @@ const DEFAULT_FOOTER: FooterConfig = {
     gitBranch: true,
     gitStatus: true,
     gitCommit: false,
-    runtime: true,
     contextBar: true,
     model: true,
     thinking: true,
@@ -134,7 +132,6 @@ const DEFAULT_FOOTER: FooterConfig = {
     gitBranch: "left",
     gitStatus: "left",
     gitCommit: "left",
-    runtime: "left",
     timer: "right",
     contextBar: "right",
     model: "right",

@@ -46,7 +46,6 @@ const COPY = {
     gitBranch: "Git branch",
     gitStatus: "Git status",
     gitCommit: "Git commit",
-    runtime: "Runtime",
     contextBar: "Context bar",
     model: "Model",
     thinking: "Thinking",
@@ -117,7 +116,7 @@ function buildFooterItems(config: PiTuiConfig): SettingItem[] {
   const f = (v: boolean) => (v ? COPY.values.on : COPY.values.off);
   const order: FooterSegmentKey[] = [
     "cwd", "timer", "gitBranch", "gitStatus", "gitCommit",
-    "runtime", "contextBar", "model", "thinking", "tokens", "cost", "extStatus",
+    "contextBar", "model", "thinking", "tokens", "cost", "extStatus",
   ];
   return order.map((key) => ({
     id: `seg:${key}`,

@@ -129,18 +129,6 @@ export function renderGit(ctx: SegmentContext): string {
   return [renderGitBranch(ctx), renderGitStatus(ctx), renderGitCommit(ctx)].filter(Boolean).join(" ");
 }
 
-export function renderRuntime(ctx: SegmentContext): string {
-  const elapsed = Math.max(0, Math.floor((Date.now() - (ctx.startTime ?? Date.now())) / 1000));
-  const hours = Math.floor(elapsed / 3600);
-  const minutes = Math.floor((elapsed % 3600) / 60);
-  const time = hours > 0
-    ? `${hours}h${minutes.toString().padStart(2, "0")}m`
-    : minutes > 0
-      ? `${minutes}m${(elapsed % 60).toString().padStart(2, "0")}s`
-      : `${elapsed}s`;
-  return `${segmentIcon(ctx, "runtime", ctx.config.runtime?.icon)}${ctx.theme.fg("dim", `uptime: ${time}`)}`;
-}
-
 export function renderContextBar(ctx: SegmentContext): string {
   if (!ctx.config.context.showBar && !ctx.config.context.showCompact) return "";
   const usage = ctx.contextUsage;
@@ -238,7 +226,6 @@ export const SEGMENT_RENDERERS: Record<string, SegmentRenderer> = {
   gitBranch: renderGitBranch,
   gitStatus: renderGitStatus,
   gitCommit: renderGitCommit,
-  runtime: renderRuntime,
   context_bar: renderContextBar,
   separator: renderSeparator,
   stale_runtime: renderStaleRuntime,
