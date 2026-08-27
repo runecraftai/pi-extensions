@@ -191,7 +191,7 @@ class PiTuiFooter implements Component {
     const enabled = config.footer.segments;
     // Keep the two lines independent: the context bar is a line-1-only segment
     // and must not affect selection of line-2 metrics.
-    const line1Keys: FooterSegmentKey[] = ["cwd", "timer", "gitBranch", "gitStatus", "gitCommit", "runtime"];
+    const line1Keys: FooterSegmentKey[] = ["cwd", "timer", "gitBranch", "gitStatus", "gitCommit"];
     const line2Keys: FooterSegmentKey[] = ["model", "thinking", "tokens", "cost", "extStatus"];
     const makeZoneTexts = (keys: FooterSegmentKey[], availableWidth: number): Record<FooterZone, string> => {
       const groups: Record<FooterZone, FooterSegment[]> = { left: [], center: [], right: [] };
@@ -276,16 +276,23 @@ class PiTuiFooter implements Component {
     };
 
     try {
-      for (const entry of this.ctx.sessionManager.getBranch()) {
-        if (entry.type !== "message") continue;
-        if (entry.message.role !== "assistant" && entry.message.role !== "toolResult") continue;
-        const messageUsage = entry.message.usage;
-        if (!messageUsage) continue;
-        usage.input += messageUsage.input ?? 0;
-        usage.output += messageUsage.output ?? 0;
-        usage.cacheRead += messageUsage.cacheRead ?? 0;
-        usage.cacheWrite += messageUsage.cacheWrite ?? 0;
-        usage.cost += messageUsage.cost?.total ?? 0;
+      for (const entry of this.ctx.sessionManager.getEntries()) {
+        if (entry.type === "message") {
+          if (entry.message.role !== "assistant" && entry.message.role !== "toolResult") continue;
+          const messageUsage = entry.message.usage;
+          if (!messageUsage) continue;
+          usage.input += messageUsage.input ?? 0;
+          usage.output += messageUsage.output ?? 0;
+          usage.cacheRead += messageUsage.cacheRead ?? 0;
+          usage.cacheWrite += messageUsage.cacheWrite ?? 0;
+          usage.cost += messageUsage.cost?.total ?? 0;
+        } else if ((entry.type === "compaction" || entry.type === "branch_summary") && entry.usage) {
+          usage.input += entry.usage.input ?? 0;
+          usage.output += entry.usage.output ?? 0;
+          usage.cacheRead += entry.usage.cacheRead ?? 0;
+          usage.cacheWrite += entry.usage.cacheWrite ?? 0;
+          usage.cost += entry.usage.cost?.total ?? 0;
+        }
       }
     } catch {
       // Graceful fallback: usage data unavailable

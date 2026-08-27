@@ -44,7 +44,7 @@ describe("canonical footer packing", () => {
       thinkingLevel: "medium",
       sessionManager: {
         getCwd: () => "/workspace/project",
-        getBranch: () => [
+        getEntries: () => [
           { type: "message", message: { role: "assistant", usage: {
             input: 1500, output: 500, cacheRead: 200, cacheWrite: 100,
             cost: { total: 0.123 },
@@ -94,8 +94,8 @@ describe("canonical footer packing", () => {
     assert.ok(line.includes("main"));
     assert.ok(line.includes("~1 ?1"));
     assert.ok(line.includes("abcdef1 demo commit"));
-    assert.ok(line.includes("uptime: 0s"));
-    assert.equal(line.match(/0s/g)?.length, 2, "timer segment should be included on line 1");
+    assert.ok(!line.includes("uptime:"));
+    assert.equal(line.match(/0s/g)?.length, 1, "only the timer segment should be included on line 1");
     assert.ok(metrics.includes("thinking: medium"));
     assert.ok(metrics.includes("2.0k"));
     assert.ok(metrics.includes("750"));
