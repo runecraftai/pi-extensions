@@ -1,0 +1,44 @@
+name: Publish pi-tui
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: publish-pi-tui
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+        env:
+          HUSKY: "0"
+      - id: package
+        name: Check published version
+        shell: bash
+        run: |
+          version=$(node -p "require('./packages/pi-tui/package.json').version")
+          published=$(npm view "@runecraftai/pi-tui@${version}" version --silent 2>/dev/null || true)
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          if [ "$published" = "$version" ]; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.package.outputs.publish == 'true'
+        name: Publish to npm
+        run: npm publish ./packages/pi-tui --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: "true"

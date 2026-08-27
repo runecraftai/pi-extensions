@@ -35,7 +35,7 @@ export function getPublishablePackages(root = process.cwd()) {
     .filter((entry) => entry.isDirectory())
     .map((entry) => join(packagesDir, entry.name, "package.json"))
     .map((file) => JSON.parse(readFileSync(file, "utf8")))
-    .filter((pkg) => !pkg.private && pkg.name?.startsWith("@runecraft/"))
+    .filter((pkg) => !pkg.private && pkg.publishConfig?.access === "public")
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
@@ -47,7 +47,13 @@ function changedPackages(root, sha) {
 }
 
 function lastRelease(root) {
-  try { return execFileSync("git", ["describe", "--tags", "--abbrev=0", "--match", "@runecraft/*@*"], { cwd: root, encoding: "utf8" }).trim(); } catch {}
+  try {
+    return execFileSync(
+      "git",
+      ["describe", "--tags", "--abbrev=0", "--match", "@runecraft/*@*", "--match", "@runecraftai/*@*"],
+      { cwd: root, encoding: "utf8" },
+    ).trim();
+  } catch {}
   return execFileSync("git", ["rev-list", "--max-parents=0", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
 }
 
