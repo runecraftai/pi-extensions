@@ -98,12 +98,16 @@ function twoColumn(
   rightWidth: number,
   paint: (s: string) => string,
 ): string {
-  return `${padRight(left, leftWidth)} ${paint("│")} ${padRight(right, rightWidth, "…")}`;
+  return `${padRight(left, leftWidth)} ${paint("│")} ${padRight(right, rightWidth)}`;
 }
 
 /* ── Header component ── */
 
 class PiTuiHeader implements Component {
+  private readonly pi: ExtensionAPI;
+  private readonly ctx: ExtensionContext;
+  private readonly tui: TUI;
+  private readonly config: HeaderConfig;
   private frame: number;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private readonly precomputedFrames: string[][];
@@ -111,12 +115,16 @@ class PiTuiHeader implements Component {
   private readonly tipCommands: string[];
 
   constructor(
-    private readonly pi: ExtensionAPI,
-    private readonly ctx: ExtensionContext,
-    private readonly tui: TUI,
-    private readonly config: HeaderConfig,
+    pi: ExtensionAPI,
+    ctx: ExtensionContext,
+    tui: TUI,
+    config: HeaderConfig,
     skipAnimation: boolean = false,
   ) {
+    this.pi = pi;
+    this.ctx = ctx;
+    this.tui = tui;
+    this.config = config;
     this.stats = collectStats(ctx);
 
     const pool = [...(this.pi.getCommands().map((c) => c.name))];
