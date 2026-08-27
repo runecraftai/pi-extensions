@@ -146,9 +146,10 @@ export function renderContextBar(ctx: SegmentContext): string {
     ? ctx.theme.fg("dim", "─".repeat(Math.max(0, ctx.width)))
     : "";
   if (usage.contextWindow <= 0) return "";
-  const icon = ctx.iconMode === "ascii"
-    ? ""
-    : ctx.config.context.icon ?? resolveIcon(ctx.iconOverrides, "contextBar");
+  const configuredIcon = ctx.config.context.icon ?? ctx.iconOverrides?.contextBar;
+  const icon = configuredIcon ?? (
+    ctx.iconMode === "ascii" ? resolveIcon(undefined, "contextBar", "ascii") : undefined
+  );
   if (ctx.config.context.showCompact) {
     return renderContextCompact(ctx.theme, usage.percent ?? 0, icon);
   }
@@ -184,10 +185,21 @@ export function renderThinking(ctx: SegmentContext): string {
 export function renderTokens(ctx: SegmentContext): string {
   if (!ctx.usage) return "";
   const parts: string[] = [];
-  if (ctx.config.tokens.showInput && ctx.usage.input) parts.push(`${segmentIcon(ctx, "tokenInput", ctx.config.tokens.inputIcon)}↑${formatTokens(ctx.usage.input)}`);
-  if (ctx.config.tokens.showOutput && ctx.usage.output) parts.push(`${segmentIcon(ctx, "tokenOutput", ctx.config.tokens.outputIcon)}↓${formatTokens(ctx.usage.output)}`);
-  if (ctx.config.tokens.showCache && ctx.usage.cacheRead) parts.push(`${segmentIcon(ctx, "cacheHit", ctx.config.tokens.cacheIcon)}R${formatTokens(ctx.usage.cacheRead)}`);
-  if (ctx.config.tokens.showCache && ctx.usage.cacheWrite) parts.push(`W${formatTokens(ctx.usage.cacheWrite)}`);
+  if (ctx.config.tokens.showInput && ctx.usage.input) {
+    const icon = segmentIcon(ctx, "tokenInput", ctx.config.tokens.inputIcon);
+    parts.push(`${icon}${icon ? "" : "↓"}${formatTokens(ctx.usage.input)}`);
+  }
+  if (ctx.config.tokens.showOutput && ctx.usage.output) {
+    const icon = segmentIcon(ctx, "tokenOutput", ctx.config.tokens.outputIcon);
+    parts.push(`${icon}${icon ? "" : "↑"}${formatTokens(ctx.usage.output)}`);
+  }
+  if (ctx.config.tokens.showCache && ctx.usage.cacheRead) {
+    parts.push(`${segmentIcon(ctx, "cacheHit", ctx.config.tokens.cacheIcon)}R${formatTokens(ctx.usage.cacheRead)}`);
+  }
+  if (ctx.config.tokens.showCache && ctx.usage.cacheWrite) {
+    const icon = ctx.usage.cacheRead ? "" : segmentIcon(ctx, "cacheHit", ctx.config.tokens.cacheIcon);
+    parts.push(`${icon}W${formatTokens(ctx.usage.cacheWrite)}`);
+  }
   return parts.join(" ");
 }
 

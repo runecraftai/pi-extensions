@@ -29,18 +29,33 @@ type FooterSegment = { key: FooterSegmentKey; text: string; priority: number };
 function selectSegments(segments: FooterSegment[], maxWidth: number): FooterSegment[] {
   if (maxWidth <= 0 || segments.length === 0) return [];
   const selected: FooterSegment[] = [];
+  const deferred: FooterSegment[] = [];
   let selectedWidth = 0;
-  for (const segment of [...segments].sort((a, b) => b.priority - a.priority)) {
+  const sorted = [...segments].sort((a, b) => b.priority - a.priority);
+
+  // Keep a long high-priority segment from consuming space needed by shorter,
+  // lower-priority segments such as the Git indicators.
+  for (const segment of sorted) {
+    const separatorWidth = selected.length ? visibleWidth(FOOTER_SEPARATOR) : 0;
+    const available = maxWidth - selectedWidth - separatorWidth;
+    if (available <= 0 || visibleWidth(segment.text) > available) {
+      deferred.push(segment);
+      continue;
+    }
+    selected.push(segment);
+    selectedWidth += separatorWidth + visibleWidth(segment.text);
+  }
+
+  for (const segment of deferred) {
     const separatorWidth = selected.length ? visibleWidth(FOOTER_SEPARATOR) : 0;
     const available = maxWidth - selectedWidth - separatorWidth;
     if (available <= 0) continue;
-    const text = visibleWidth(segment.text) <= available
-      ? segment.text
-      : truncateToWidth(segment.text, available, "…");
+    const text = truncateToWidth(segment.text, available, "…");
     if (!text) continue;
     selected.push({ ...segment, text });
     selectedWidth += separatorWidth + visibleWidth(text);
   }
+
   return selected;
 }
 
@@ -187,9 +202,10 @@ class PiTuiFooter implements Component {
     const contextRequested = enabled.contextBar &&
       (config.footer.context.showBar || config.footer.context.showCompact) &&
       contextUsage !== undefined && contextUsage.contextWindow > 0;
-    const contextIcon = config.icons.mode === "ascii"
-      ? ""
-      : config.footer.context.icon ?? resolveIcon(iconOverrides, "contextBar");
+    const configuredContextIcon = config.footer.context.icon ?? iconOverrides.contextBar;
+    const contextIcon = configuredContextIcon ?? (
+      config.icons.mode === "ascii" ? resolveIcon(undefined, "contextBar", "ascii") : undefined
+    );
     const contextMinWidth = contextRequested
       ? contextBarMinimumWidth(
         this.theme,

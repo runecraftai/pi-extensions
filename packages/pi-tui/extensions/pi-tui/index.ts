@@ -9,7 +9,7 @@
  */
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { DEFAULT_ICONS } from "./icons.ts";
+import { DEFAULT_ICONS, resolveIcon } from "./icons.ts";
 import { loadConfig, saveConfig, type PiTuiConfig } from "./config.ts";
 import { installHeader } from "./header/index.ts";
 import { installFooter } from "./footer/index.ts";
@@ -45,9 +45,13 @@ export default function (pi: ExtensionAPI) {
   const applyHeader = (ctx: ExtensionContext, skipAnimation: boolean = false) => {
     if (ctx.mode !== "tui" || !config.enabled || !config.header.enabled) return;
     if (cleanupHeader) return;
-    const headerIcons = config.icons.mode === "ascii"
-      ? Object.fromEntries(Object.keys(DEFAULT_ICONS).map((key) => [key, ""]))
-      : { ...config.icons.custom, ...config.header.icons };
+    const modeIcons = Object.fromEntries(
+      Object.keys(DEFAULT_ICONS).map((key) => [
+        key,
+        resolveIcon(undefined, key as keyof typeof DEFAULT_ICONS, config.icons.mode),
+      ]),
+    );
+    const headerIcons = { ...modeIcons, ...config.icons.custom, ...config.header.icons };
     cleanupHeader = installHeader(pi, ctx, { ...config.header, icons: headerIcons }, skipAnimation);
   };
 

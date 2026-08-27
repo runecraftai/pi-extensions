@@ -228,8 +228,8 @@ describe("renderTokens", () => {
       usage: { input: 1500, output: 500, cacheRead: 200, cacheWrite: 100, cost: 0 },
     });
     const result = renderTokens(ctx);
-    assert.ok(result.includes("↑1.5k"));
-    assert.ok(result.includes("↓500"));
+    assert.ok(result.includes("↓1.5k"));
+    assert.ok(result.includes("↑500"));
     assert.ok(result.includes("R200"));
     assert.ok(result.includes("W100"));
   });

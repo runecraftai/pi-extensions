@@ -110,7 +110,7 @@ describe("pi-tui package registration", () => {
       const rendered = footer.render(80);
       assert.equal(rendered.length, 2);
       assert.match(rendered[0]!, /50k\/100k/);
-      assert.equal(rendered[1]!.trim(), "configured-model · configured-status");
+      assert.equal(rendered[1]!.trim(), "M configured-model · & configured-status");
 
       sessionShutdown?.({}, ctx);
     } finally {

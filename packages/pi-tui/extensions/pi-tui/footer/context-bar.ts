@@ -25,14 +25,15 @@ export function contextBarMinimumWidth(
   pct: number,
   tokens: number,
   contextWindow: number,
-  icon = "📊",
+  icon?: string,
 ): number {
   const clampedPct = Math.max(0, Math.min(100, pct));
   const context = zone(clampedPct);
   const pctText = theme.fg(context.color, `${clampedPct.toFixed(1)}%`);
   const tokenText = `${formatTokens(tokens)}/${formatTokens(contextWindow)}`;
   const leftText = `${Math.max(0, context.ceiling - clampedPct).toFixed(0)}% left`;
-  const iconText = icon ? `${theme.fg(context.color, icon)} ` : "";
+  const resolvedIcon = icon ?? context.icon;
+  const iconText = resolvedIcon ? `${theme.fg(context.color, resolvedIcon)} ` : "";
   return visibleWidth(`${iconText} ${pctText} ${theme.fg("dim", "·")} ${theme.fg("dim", leftText)} ${theme.fg("dim", tokenText)}`) + 1;
 }
 
@@ -42,7 +43,7 @@ export function renderContextBar(
   tokens: number,
   contextWindow: number,
   width: number,
-  icon = "📊",
+  icon?: string,
 ): string {
   if (contextWindow <= 0 || width <= 0) return "";
 
@@ -52,7 +53,8 @@ export function renderContextBar(
   const tokenText = `${formatTokens(tokens)}/${formatTokens(contextWindow)}`;
   const left = Math.max(0, context.ceiling - clampedPct);
   const leftText = `${left.toFixed(0)}% left`;
-  const iconText = icon ? `${theme.fg(context.color, icon)} ` : "";
+  const resolvedIcon = icon ?? context.icon;
+  const iconText = resolvedIcon ? `${theme.fg(context.color, resolvedIcon)} ` : "";
   const fixedText = `${iconText} ${pctText} ${theme.fg("dim", "·")} ${theme.fg("dim", leftText)} ${theme.fg("dim", tokenText)}`;
   const fixed = visibleWidth(fixedText);
   if (width <= fixed) return truncateToWidth(fixedText, width, "…");
@@ -70,9 +72,10 @@ export function renderContextBar(
   return `${iconText}${bar} ${pctText} ${theme.fg("dim", "·")} ${theme.fg("dim", leftText)} ${theme.fg("dim", tokenText)}`;
 }
 
-export function renderContextCompact(theme: Theme, pct: number, icon = "📊"): string {
+export function renderContextCompact(theme: Theme, pct: number, icon?: string): string {
   const clampedPct = Math.max(0, Math.min(100, pct));
   const context = zone(clampedPct);
-  const iconText = icon ? `${theme.fg(context.color, icon)} ` : "";
+  const resolvedIcon = icon ?? context.icon;
+  const iconText = resolvedIcon ? `${theme.fg(context.color, resolvedIcon)} ` : "";
   return `${iconText}${theme.fg(context.color, `${clampedPct.toFixed(1)}%`)}`;
 }

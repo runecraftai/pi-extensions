@@ -76,4 +76,14 @@ describe("canonical footer packing", () => {
     assert.ok(line.includes("80k/200k"));
     assert.ok(line.includes("uptime: 0s"));
   });
+
+  it("keeps Git segments visible when cwd is long", () => {
+    const result = packSegments([
+      segment("cwd", "/home/rehem/.fob/pi-extensions-e07edc/2/pi-extensions/packages/pi-tui", 10),
+      segment("gitBranch", "⎇ main", 8),
+      segment("gitStatus", "~1 ?1", 5),
+    ], 20);
+    assert.ok(result.includes("main"));
+    assert.ok(result.includes("~1 ?1"));
+  });
 });

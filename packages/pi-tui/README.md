@@ -99,7 +99,7 @@ Create or edit `~/.pi/agent/pi-tui.json`. Partial objects are supported; omitted
 }
 ```
 
-`icons.mode` accepts `auto`, `nerd`, or `ascii`. `auto` uses the Nerd Font glyph path like `nerd`; it does not detect terminal capability, so choose `ascii` for an ASCII-safe fallback. `ascii` disables Nerd Font prefixes while retaining the existing text markers. `icons.custom` is a global override map; segment-specific settings take precedence.
+`icons.mode` accepts `auto`, `nerd`, or `ascii`. `auto` uses the Nerd Font glyph path like `nerd`; it does not detect terminal capability, so choose `ascii` for an ASCII-safe fallback. `ascii` uses the ASCII equivalents for each icon. `icons.custom` is a global override map; segment-specific settings take precedence.
 
 ### Icon options
 

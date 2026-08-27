@@ -31,7 +31,7 @@ export interface SegmentIcons {
 
 /* Nerd Font icons (used when iconMode is "auto" or "nerd") */
 export const NERD_ICONS: SegmentIcons = {
-  version: "\u{F17C}",   //  (Pi logo)
+  version: "\u{F17C}",   // Nerd Font Pi
   model: "\u{EC19}",     //  
   skills: "\u{EB64}",    //  
   prompts: "\u{F15C}",   // ▶
@@ -42,10 +42,10 @@ export const NERD_ICONS: SegmentIcons = {
   gitCommit: "\u{F1D3}", // ○
   timer: "\u{F017}",     //  
   runtime: "\u{F120}",   // ▸
-  contextBar: "\u{E70F}", // ●
+  contextBar: "\u{1F9E0}", // 🧠 brain
   thinking: "\u{F5DC}",  // ◎
-  tokenInput: "\u{F090}", // ↑
-  tokenOutput: "\u{F08B}", // ↓
+  tokenInput: "\u{F063}", // ↓
+  tokenOutput: "\u{F062}", // ↑
   cacheHit: "\u{F1C0}",  // c
   cost: "\u{F155}",      // $
   extensionStatus: "\u{EB25}", // &
@@ -66,12 +66,15 @@ export const ASCII_ICONS: SegmentIcons = {
   runtime: ">",
   contextBar: "%",
   thinking: "?",
-  tokenInput: "^",
-  tokenOutput: "v",
+  tokenInput: "v",
+  tokenOutput: "^",
   cacheHit: "c",
   cost: "$",
   extensionStatus: "&",
 };
+
+/** Backward-compatible alias — the old import name used by index.ts */
+export const DEFAULT_ICONS = NERD_ICONS;
 
 /**
  * Resolve icon based on mode.
