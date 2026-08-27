@@ -281,7 +281,7 @@ describe("renderExtStatus", () => {
 describe("SEGMENT_RENDERERS", () => {
   it("renders each segment through the registry", () => {
     const expectedSegments = [
-      "cwd", "timer", "git", "runtime", "context_bar",
+      "cwd", "timer", "git", "context_bar",
       "separator", "stale_runtime", "model", "thinking",
       "tokens", "cost", "ext_status",
     ];
