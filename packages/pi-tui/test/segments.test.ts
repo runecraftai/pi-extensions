@@ -12,7 +12,6 @@ import {
   renderGit,
   renderGitStatus,
   renderGitCommit,
-  renderRuntime,
   renderContextBar,
   renderSeparator,
   renderStaleRuntime,
@@ -134,15 +133,6 @@ describe("renderGit", () => {
     });
     const result = renderGit(ctx);
     assert.equal(result, "");
-  });
-});
-
-describe("renderRuntime", () => {
-  it("renders runtime uptime", () => {
-    const ctx = createMockContext({ startTime: Date.now() - 65000 });
-    const result = renderRuntime(ctx);
-    assert.ok(result.includes("uptime:"));
-    assert.ok(result.includes("1m05s"));
   });
 });
 
