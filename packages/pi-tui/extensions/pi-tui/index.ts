@@ -88,10 +88,9 @@ export default function (pi: ExtensionAPI) {
 
   const applyAll = async (ctx: ExtensionContext, skipAnimation: boolean = false) => {
     applyHeader(ctx, skipAnimation);
-    await refreshGitStatus(ctx);
-    if (activeContext !== ctx) return;
     applyFooter(ctx);
     applyEditor(ctx);
+    void refreshGitStatus(ctx);
   };
 
   const uninstallAll = () => {
