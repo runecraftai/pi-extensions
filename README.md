@@ -105,7 +105,7 @@ publish access to `@runecraft/pi-tui`. Add it in the repository's **Settings →
 Secrets and variables → Actions** page. GitHub Actions also requests an OIDC
 token so npm provenance is attached to each publication. The private workspace
 root is never published. For this release, `packages/pi-tui/package.json` already
-sets version `0.2.0`, so merging it lets `publish.yml` publish directly without a
+sets version `0.2.1`, so merging it lets `publish.yml` publish directly without a
 version pull request. Do not add versions or publish packages manually for normal
 changes.
 
