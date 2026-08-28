@@ -29,7 +29,7 @@ jobs:
         shell: bash
         run: |
           version=$(node -p "require('./packages/pi-tui/package.json').version")
-          published=$(npm view "@runecraftai/pi-tui@${version}" version --silent 2>/dev/null || true)
+          published=$(npm view "@runecraft/pi-tui@${version}" version --silent 2>/dev/null || true)
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           if [ "$published" = "$version" ]; then
             echo "publish=false" >> "$GITHUB_OUTPUT"
