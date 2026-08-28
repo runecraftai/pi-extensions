@@ -25,7 +25,6 @@ jobs:
       - run: npm ci
         env:
           HUSKY: "0"
-      - run: node scripts/generate-changesets.mjs
       - uses: changesets/action@2eb40f21fc0fc331693bac5da931f72e4faf1eaf
         with:
           version: npm run changeset:version
