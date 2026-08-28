@@ -1,4 +1,4 @@
-# @runecraft/pi-tui
+# @runecraftai/pi-tui
 
 Customizable TUI extension for [pi](https://pi.dev) with an animated header, configurable footer, context view, and interactive settings.
 
@@ -17,7 +17,7 @@ Customizable TUI extension for [pi](https://pi.dev) with an animated header, con
 ### Published package
 
 ```bash
-pi install npm:@runecraft/pi-tui
+pi install npm:@runecraftai/pi-tui
 ```
 
 ### Local package root
@@ -150,10 +150,9 @@ The footer receives Git branch and extension status data from the third
 `ctx.ui.setFooter` factory argument. Token and cost segments aggregate usage
 from session entries, and context usage comes from `ctx.getContextUsage()`.
 
-The published npm artifact may lag the repository source. As external evidence,
-`@runecraft/pi-tui@0.1.1` currently contains only the header entry and does not
-include the footer fix. After a fixed release is published, install it with the
-exact source identifier `npm:@runecraft/pi-tui` shown above.
+The npm package is published from `packages/pi-tui` by the repository's
+Changesets and GitHub Actions release workflows. Install it with the exact
+source identifier `npm:@runecraftai/pi-tui` shown above.
 
 ## Settings
 

@@ -1,5 +1,5 @@
 ---
-"@runecraft/pi-tui": patch
+"@runecraftai/pi-tui": patch
 ---
 
 Publish the configured footer implementation.
