@@ -18,7 +18,6 @@ export interface SegmentIcons {
   gitStatus: string;
   gitCommit: string;
   timer: string;
-  runtime: string;
   contextBar: string;
   thinking: string;
   tokenInput: string;
@@ -39,7 +38,6 @@ export const DEFAULT_ICONS: SegmentIcons = {
   gitStatus: "\u{F1D3}",
   gitCommit: "\u{F1D3}",
   timer: "\u{F017}",
-  runtime: "\u{F120}",
   contextBar: "\u{E70F}",
   thinking: "\u{F5DC}",
   tokenInput: "\u{F090}",

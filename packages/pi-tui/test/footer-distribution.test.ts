@@ -61,7 +61,6 @@ describe("canonical footer packing", () => {
       gitBranch: "center",
       gitStatus: "center",
       gitCommit: "center",
-      runtime: "right",
       contextBar: "left",
     };
     installFooter(context, () => config, () => ({
@@ -73,7 +72,7 @@ describe("canonical footer packing", () => {
     const line = component.render(140)[0]!;
     assert.ok(visibleWidth(line) <= 140);
     assert.ok(!line.includes("…"));
-    assert.ok(line.includes("80k/200k"));
-    assert.ok(line.includes("uptime: 0s"));
+    assert.ok(line.includes("🧠"));
+    assert.ok(line.includes("warm 60% left"));
   });
 });

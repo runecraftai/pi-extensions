@@ -20,7 +20,7 @@ const config = {
   tokens: { showInput: true, showOutput: true, showCache: true },
   cost: {},
   telemetry: { enabled: false, tps: true, ttft: true, stalls: true },
-  runtime: {}, timer: {}, model: {}, thinking: {}, extStatus: {},
+  timer: {}, model: {}, thinking: {}, extStatus: {},
 };
 
 function context(overrides: Partial<SegmentContext> = {}): SegmentContext {

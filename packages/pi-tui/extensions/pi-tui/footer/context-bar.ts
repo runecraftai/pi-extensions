@@ -3,37 +3,57 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 
-const WARN = 40;
-const DANGER = 70;
+const SMART_LIMIT = 40;
+const WARM_LIMIT = 70;
+const BAR_WIDTH = 20;
+const BAR_DIVIDERS = new Set([8, 14]);
 
-type ContextColor = "accent" | "warning" | "error";
+type ContextColor = "success" | "warning" | "error";
+type ContextZone = { label: "smart" | "warm" | "dumb"; ceiling: number; color: ContextColor };
 
-function zone(pct: number): { icon: string; ceiling: number; color: ContextColor } {
-  if (pct < WARN) return { icon: "\u{1F9E0}", ceiling: WARN, color: "accent" };
-  if (pct < DANGER) return { icon: "⚠️", ceiling: DANGER, color: "warning" };
-  return { icon: "\u{1F9DF}", ceiling: 100, color: "error" };
+function zone(pct: number): ContextZone {
+  if (pct < SMART_LIMIT) return { label: "smart", ceiling: SMART_LIMIT, color: "success" };
+  if (pct <= WARM_LIMIT) return { label: "warm", ceiling: WARM_LIMIT, color: "warning" };
+  return { label: "dumb", ceiling: 100, color: "error" };
 }
 
-function formatTokens(value: number): string {
-  if (value < 1000) return `${value}`;
-  if (value < 1_000_000) return `${Math.round(value / 1000)}k`;
-  return `${(value / 1_000_000).toFixed(1)}M`;
+function renderBar(theme: Theme, pct: number, color: ContextColor): string {
+  const filledUnits = Math.round((pct / 100) * (BAR_WIDTH / 2));
+  const chars = [..."██".repeat(filledUnits) + "░░".repeat(BAR_WIDTH / 2 - filledUnits)];
+  return chars.map((char, index) => BAR_DIVIDERS.has(index)
+    ? theme.fg("dim", "│")
+    : theme.fg(color, char)).join("");
+}
+
+function renderUsageText(theme: Theme, pct: number, icon?: string): string {
+  const clampedPct = Math.max(0, Math.min(100, pct));
+  const context = zone(clampedPct);
+  const remaining = Math.max(0, Math.round(100 - clampedPct));
+  const resolvedIcon = icon ?? "🧠";
+  const iconText = resolvedIcon ? `${theme.fg(context.color, resolvedIcon)} ` : "";
+  return `${iconText}${renderBar(theme, clampedPct, context.color)} ${theme.fg(context.color, context.label)} ${theme.fg(context.color, `${remaining}% left`)}`;
 }
 
 export function contextBarMinimumWidth(
   theme: Theme,
   pct: number,
-  tokens: number,
-  contextWindow: number,
-  icon = "📊",
+  _tokens: number,
+  _contextWindow: number,
+  icon?: string,
 ): number {
-  const clampedPct = Math.max(0, Math.min(100, pct));
-  const context = zone(clampedPct);
-  const pctText = theme.fg(context.color, `${clampedPct.toFixed(1)}%`);
-  const tokenText = `${formatTokens(tokens)}/${formatTokens(contextWindow)}`;
-  const leftText = `${Math.max(0, context.ceiling - clampedPct).toFixed(0)}% left`;
-  const iconText = icon ? `${theme.fg(context.color, icon)} ` : "";
-  return visibleWidth(`${iconText} ${pctText} ${theme.fg("dim", "·")} ${theme.fg("dim", leftText)} ${theme.fg("dim", tokenText)}`) + 1;
+  return visibleWidth(renderUsageText(theme, pct, icon));
+}
+
+export function renderUsageContextBar(
+  theme: Theme,
+  pct: number,
+  _tokens: number,
+  contextWindow: number,
+  width: number,
+  icon?: string,
+): string {
+  if (contextWindow <= 0 || width <= 0) return "";
+  return truncateToWidth(renderUsageText(theme, pct, icon), width, "…");
 }
 
 export function renderContextBar(
@@ -42,37 +62,15 @@ export function renderContextBar(
   tokens: number,
   contextWindow: number,
   width: number,
-  icon = "📊",
+  icon?: string,
 ): string {
-  if (contextWindow <= 0 || width <= 0) return "";
-
-  const clampedPct = Math.max(0, Math.min(100, pct));
-  const context = zone(clampedPct);
-  const pctText = theme.fg(context.color, `${clampedPct.toFixed(1)}%`);
-  const tokenText = `${formatTokens(tokens)}/${formatTokens(contextWindow)}`;
-  const left = Math.max(0, context.ceiling - clampedPct);
-  const leftText = `${left.toFixed(0)}% left`;
-  const iconText = icon ? `${theme.fg(context.color, icon)} ` : "";
-  const fixedText = `${iconText} ${pctText} ${theme.fg("dim", "·")} ${theme.fg("dim", leftText)} ${theme.fg("dim", tokenText)}`;
-  const fixed = visibleWidth(fixedText);
-  if (width <= fixed) return truncateToWidth(fixedText, width, "…");
-  const barWidth = width - fixed;
-  const filled = Math.round((clampedPct / 100) * barWidth);
-  const warnPos = Math.round((WARN / 100) * barWidth);
-  const dangerPos = Math.round((DANGER / 100) * barWidth);
-  let bar = "";
-  for (let i = 0; i < barWidth; i++) {
-    if (i === warnPos || i === dangerPos) bar += theme.fg("dim", "│");
-    else if (i < filled) bar += theme.fg(context.color, "█");
-    else bar += theme.fg("dim", "░");
-  }
-
-  return `${iconText}${bar} ${pctText} ${theme.fg("dim", "·")} ${theme.fg("dim", leftText)} ${theme.fg("dim", tokenText)}`;
+  return renderUsageContextBar(theme, pct, tokens, contextWindow, width, icon);
 }
 
-export function renderContextCompact(theme: Theme, pct: number, icon = "📊"): string {
+export function renderContextCompact(theme: Theme, pct: number, icon?: string): string {
   const clampedPct = Math.max(0, Math.min(100, pct));
   const context = zone(clampedPct);
-  const iconText = icon ? `${theme.fg(context.color, icon)} ` : "";
+  const resolvedIcon = icon ?? "🧠";
+  const iconText = resolvedIcon ? `${theme.fg(context.color, resolvedIcon)} ` : "";
   return `${iconText}${theme.fg(context.color, `${clampedPct.toFixed(1)}%`)}`;
 }

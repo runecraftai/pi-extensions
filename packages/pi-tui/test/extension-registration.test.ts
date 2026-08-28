@@ -55,7 +55,6 @@ describe("pi-tui package registration", () => {
               gitBranch: false,
               gitStatus: false,
               gitCommit: false,
-              runtime: false,
               contextBar: true,
               model: true,
               thinking: false,
@@ -94,7 +93,9 @@ describe("pi-tui package registration", () => {
 
       extension(pi as never);
       sessionStart?.({ reason: "startup" }, ctx);
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      for (let attempt = 0; attempt < 20 && !footerFactory; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
 
       assert.ok(footerFactory, "footer factory should be registered");
       const footer = footerFactory(
@@ -109,7 +110,7 @@ describe("pi-tui package registration", () => {
       );
       const rendered = footer.render(80);
       assert.equal(rendered.length, 2);
-      assert.match(rendered[0]!, /50k\/100k/);
+      assert.match(rendered[0]!, /warm 50% left/);
       assert.equal(rendered[1]!.trim(), "configured-model · configured-status");
 
       sessionShutdown?.({}, ctx);

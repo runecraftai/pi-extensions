@@ -7,11 +7,9 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth } from "@earendil-works/pi-tui";
 
-/** Commands always shown as tips (plus randomly selected extras). */
-const FIXED_TIPS = ["tui reload"];
-
 /** Built-in pi commands that are always available as tip candidates. */
 const BUILTIN_COMMANDS = [
+  "pi-tui",
   "settings", "model", "session", "compact", "resume", "reload",
   "new", "fork", "tree", "quit", "login", "export", "import",
 ];
@@ -25,9 +23,8 @@ export function pickTips(
   availableNames: readonly string[],
   count: number,
 ): string[] {
-  const exclude = new Set<string>(FIXED_TIPS);
   const pool = [...new Set([...BUILTIN_COMMANDS, ...availableNames])]
-    .filter((n) => !exclude.has(n) && n.trim().length > 0);
+    .filter((n) => n.trim().length > 0);
 
   // Fisher-Yates shuffle
   for (let i = pool.length - 1; i > 0; i--) {
@@ -37,13 +34,18 @@ export function pickTips(
     pool[j] = tmp;
   }
 
-  const picked = pool.slice(0, Math.max(0, count - FIXED_TIPS.length));
-  return [...FIXED_TIPS, ...picked].map((n) => (n.startsWith("/") ? n : `/${n}`));
+  const selected = pool.slice(0, Math.max(0, count)).map((n) => (n.startsWith("/") ? n : `/${n}`));
+  // Always include /pi-tui as first item
+  if (!selected.includes("/pi-tui") && count > 0) {
+    selected.unshift("/pi-tui");
+    if (selected.length > count) selected.pop();
+  }
+  return selected;
 }
 
 /**
  * Render the tips panel lines.
- * @param tips - array of tip strings like "/tui reload", "/model", etc.
+ * @param tips - array of tip strings like "/model", "/session", etc.
  * @param maxWidth - maximum width for each line
  * @param paint - theme paint function for accent color
  * @param muted - theme paint function for muted text

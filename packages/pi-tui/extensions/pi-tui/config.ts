@@ -32,7 +32,7 @@ export interface HeaderConfig {
 
 export type FooterSegmentKey =
   | "cwd" | "timer" | "gitBranch" | "gitStatus" | "gitCommit"
-  | "runtime" | "contextBar" | "model" | "thinking"
+  | "contextBar" | "model" | "thinking"
   | "tokens" | "cost" | "extStatus";
 
 export type FooterZone = "left" | "center" | "right";
@@ -45,7 +45,6 @@ export interface FooterSegments {
   gitBranch: boolean;
   gitStatus: boolean;
   gitCommit: boolean;
-  runtime: boolean;
   contextBar: boolean;
   model: boolean;
   thinking: boolean;
@@ -70,15 +69,16 @@ export interface FooterConfig {
   };
   cost: { icon?: string };
   telemetry: { enabled: boolean; tps: boolean; ttft: boolean; stalls: boolean };
-  runtime: { icon?: string };
   timer: { icon?: string };
   model: { icon?: string };
   thinking: { icon?: string };
   extStatus: { icon?: string };
 }
 
+export type CursorStyle = "block" | "bar" | "underline";
+
 export interface EditorConfig {
-  cursorStyle: "block" | "bar" | "underline";
+  cursorStyle: CursorStyle;
   roundedBorders: boolean;
 }
 
@@ -120,7 +120,6 @@ const DEFAULT_FOOTER: FooterConfig = {
     gitBranch: true,
     gitStatus: true,
     gitCommit: false,
-    runtime: true,
     contextBar: true,
     model: true,
     thinking: true,
@@ -134,7 +133,6 @@ const DEFAULT_FOOTER: FooterConfig = {
     gitBranch: "left",
     gitStatus: "left",
     gitCommit: "left",
-    runtime: "left",
     timer: "right",
     contextBar: "right",
     model: "right",
@@ -143,12 +141,11 @@ const DEFAULT_FOOTER: FooterConfig = {
     cost: "right",
     extStatus: "right",
   },
-  git: { showBranch: true, showStatus: true, showCommit: false },
+  git: { showBranch: true, showStatus: true, showCommit: true },
   context: { showBar: true, showCompact: false },
   tokens: { showInput: true, showOutput: true, showCache: true },
   cost: {},
   telemetry: { enabled: false, tps: true, ttft: true, stalls: true },
-  runtime: {},
   timer: {},
   model: {},
   thinking: {},

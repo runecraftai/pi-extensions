@@ -11,7 +11,7 @@ type FooterZone = "left" | "center" | "right";
 
 interface FooterSegments {
   cwd: boolean; timer: boolean; gitBranch: boolean; gitStatus: boolean;
-  gitCommit: boolean; runtime: boolean; contextBar: boolean; model: boolean;
+  gitCommit: boolean; contextBar: boolean; model: boolean;
   thinking: boolean; tokens: boolean; cost: boolean; extStatus: boolean;
 }
 type FooterSegmentKey = keyof FooterSegments;
@@ -38,12 +38,12 @@ const DEFAULT_CONFIG: PiTuiConfig = {
     enabled: true,
     segments: {
       cwd: true, timer: true, gitBranch: true, gitStatus: true, gitCommit: false,
-      runtime: true, contextBar: true, model: true, thinking: true,
+      contextBar: true, model: true, thinking: true,
       tokens: true, cost: true, extStatus: true,
     },
     zones: {
       // Layout D defaults
-      cwd: "left", gitBranch: "left", gitStatus: "left", gitCommit: "left", runtime: "left",
+      cwd: "left", gitBranch: "left", gitStatus: "left", gitCommit: "left",
       timer: "right", contextBar: "right", model: "right", thinking: "right",
       tokens: "right", cost: "right", extStatus: "right",
     },
@@ -143,7 +143,7 @@ describe("Settings toggles", () => {
 
   const allKeys: FooterSegmentKey[] = [
     "cwd", "timer", "gitBranch", "gitStatus", "gitCommit",
-    "runtime", "contextBar", "model", "thinking", "tokens", "cost", "extStatus",
+    "contextBar", "model", "thinking", "tokens", "cost", "extStatus",
   ];
 
   describe("Footer tab", () => {

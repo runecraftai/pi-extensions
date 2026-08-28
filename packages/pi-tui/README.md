@@ -69,7 +69,6 @@ Create or edit `~/.pi/agent/pi-tui.json`. Partial objects are supported; omitted
       "gitBranch": true,
       "gitStatus": true,
       "gitCommit": false,
-      "runtime": true,
       "contextBar": true,
       "model": true,
       "thinking": true,
@@ -82,7 +81,6 @@ Create or edit `~/.pi/agent/pi-tui.json`. Partial objects are supported; omitted
       "gitBranch": "left",
       "gitStatus": "left",
       "gitCommit": "left",
-      "runtime": "left",
       "timer": "right",
       "contextBar": "right",
       "model": "right",
@@ -111,7 +109,6 @@ Footer icon options are configured on the matching footer object:
 | --- | --- |
 | Git branch/status/commit | `footer.git.icon` |
 | Timer | `footer.timer.icon` |
-| Runtime | `footer.runtime.icon` |
 | Context bar | `footer.context.icon` |
 | Model | `footer.model.icon` |
 | Thinking | `footer.thinking.icon` |
@@ -136,7 +133,6 @@ press **Enter**.
 | `gitBranch` | Current branch |
 | `gitStatus` | Working-tree and ahead/behind indicators |
 | `gitCommit` | Short latest commit and tag when configured |
-| `runtime` | Session uptime |
 | `contextBar` | Context usage visualization |
 | `model` | Current model |
 | `thinking` | Current thinking level |
@@ -144,19 +140,15 @@ press **Enter**.
 | `cost` | Session cost |
 | `extStatus` | Extension status values |
 
-The default footer packs line 1 as `cwd`, Git segments, and runtime, then
-expands the context bar into the remaining width on the right. Line 2
-right-aligns model, thinking, tokens, cost, and extension status. Priority order
-is defined by `FOOTER_PRIORITY` in `extensions/pi-tui/footer/index.ts`.
+The default footer packs project identity on the left and metrics on the right.
+The context bar uses the remaining space when configured. Priority order is
+defined by `FOOTER_PRIORITY` in `extensions/pi-tui/footer/index.ts`.
 
-## Runtime dependencies
+## Data dependencies
 
 The footer receives Git branch and extension status data from the third
 `ctx.ui.setFooter` factory argument. Token and cost segments aggregate usage
-from `ctx.sessionManager.getBranch()`, and context usage comes from
-`ctx.getContextUsage()`. When usage data is unavailable, token and cost segments
-render empty; the context bar falls back to a dim placeholder when configured
-to show a bar.
+from session entries, and context usage comes from `ctx.getContextUsage()`.
 
 The published npm artifact may lag the repository source. As external evidence,
 `@runecraft/pi-tui@0.1.1` currently contains only the header entry and does not
