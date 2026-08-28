@@ -6,7 +6,7 @@ Monorepo of [pi](https://pi.dev) extensions by Runecraft.
 
 | Package | Description | Install |
 |---------|-------------|---------|
-| [`packages/pi-tui`](./packages/pi-tui) | Customizable TUI — header, footer, editor, context view | `pi install npm:@runecraftai/pi-tui` |
+| [`packages/pi-tui`](./packages/pi-tui) | Customizable TUI — header, footer, editor, context view | `pi install npm:@runecraft/pi-tui` |
 | [`packages/graphify-pi`](./packages/graphify-pi) | Knowledge-graph query tools (graphify CLI wrapper) | `pi install npm:@runecraft/graphify-pi` |
 
 > **Forward note:** [graphify-pi](https://github.com/runecraftai/graphify-pi) will be consolidated into this monorepo later. No graphify-related work is planned for this phase.
@@ -40,7 +40,7 @@ pi -e ./packages/pi-tui/extensions/pi-tui/index.ts
 ### Installing the published package
 
 ```bash
-pi install npm:@runecraftai/pi-tui
+pi install npm:@runecraft/pi-tui
 ```
 
 The package reads `~/.pi/agent/pi-tui.json`. Configure footer segments under `footer.segments` and their `left`, `center`, or `right` placement under `footer.zones`; supported segment keys include `cwd`, `timer`, `gitBranch`, `gitStatus`, `gitCommit`, `runtime`, `contextBar`, `model`, `thinking`, `tokens`, `cost`, and `extStatus`. Run `/pi-tui reload` after editing the file.
@@ -51,7 +51,7 @@ The package reads `~/.pi/agent/pi-tui.json`. Configure footer segments under `fo
 - **Masking condition:** The earlier integration looked for `footerData` on `ExtensionContext`, although pi supplies it as the third argument to the `ctx.ui.setFooter` factory. Deferring registration also captured a context that could become stale when pi replaced the session. Successful extension loading and the built-in footer masked both issues.
 - **Visible symptom:** The config loaded, but the commander saw the default or incomplete footer instead of the configured context and related segments.
 - **Smallest counterfactual and proven path:** Passing the factory-provided data and registering from the active `session_start` context makes the package-root and direct-entry local launches render configured segments. The regression test covers package metadata, `~/.pi/agent/pi-tui.json`, the factory provider, and rendering.
-- **Release validation:** The `publish.yml` workflow publishes `npm:@runecraftai/pi-tui` after its version is not already present in the npm registry.
+- **Release validation:** The `publish.yml` workflow publishes `npm:@runecraft/pi-tui` after its version is not already present in the npm registry.
 - **Runtime errors:** The implementation keeps registration/rendering errors visible. Only unavailable usage data has an explicit fallback; documentation does not substitute for runtime behavior.
 - **PR reconciliation:** PR #3 is closed without merge and is superseded by this fix. PRs #4 and #6 are already merged and closed; their renderer/settings work is retained. None is closed, deleted, or merged by this change.
 
@@ -102,7 +102,7 @@ affected public packages.
 ### Release setup
 
 `.github/workflows/publish.yml` requires an `NPM_TOKEN` repository secret with
-publish access to `@runecraftai/pi-tui`. Add it in the repository's **Settings →
+publish access to `@runecraft/pi-tui`. Add it in the repository's **Settings →
 Secrets and variables → Actions** page. GitHub Actions also requests an OIDC
 token so npm provenance is attached to each publication. The private workspace
 root is never published. The Changesets workflow creates version pull requests;
