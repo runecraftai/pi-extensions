@@ -1,6 +1,6 @@
 {
   "name": "@runecraft/pi-tui",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Customizable TUI for pi — header, footer, editor, and context view in one configurable extension.",
   "type": "module",
   "keywords": [
