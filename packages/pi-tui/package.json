@@ -22,7 +22,9 @@
     "directory": "packages/pi-tui"
   },
   "pi": {
-    "extensions": ["./extensions/pi-tui"]
+    "extensions": [
+      "./extensions/pi-tui"
+    ]
   },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*",

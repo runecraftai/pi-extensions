@@ -1,7 +1,7 @@
 {
   "name": "@runecraft/graphify-pi",
-  "version": "0.2.0",
-  "description": "Minimal Pi extension for graphify knowledge graphs \u2014 lazy tools, git-based staleness, bounded exec, zero config.",
+  "version": "0.3.0",
+  "description": "Minimal Pi extension for graphify knowledge graphs — lazy tools, git-based staleness, bounded exec, zero config.",
   "type": "module",
   "license": "MIT",
   "repository": {
