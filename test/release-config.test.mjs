@@ -21,7 +21,7 @@ test("conventional commit types map to independent semver bumps", () => {
 test("publishable packages are selected deterministically", () => {
   assert.deepEqual(
     getPublishablePackages().map((pkg) => pkg.name),
-    ["@runecraft/graphify-pi", "@runecraftai/pi-tui"],
+    ["@runecraft/graphify-pi", "@runecraft/pi-tui"],
   );
 });
 
