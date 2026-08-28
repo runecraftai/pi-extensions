@@ -9,7 +9,7 @@ import type { ExtensionContext, ReadonlyFooterDataProvider, Theme } from "@earen
 import type { Component } from "@earendil-works/pi-tui";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import type { FooterSegmentKey, FooterZone, PiTuiConfig } from "../config.ts";
-import { resolveIcon, type SegmentIcons } from "../icons.ts";
+import { type SegmentIcons } from "../icons.ts";
 import { contextBarMinimumWidth } from "./context-bar.ts";
 import type { GitStatus } from "./git.ts";
 import {
@@ -19,8 +19,8 @@ import {
 
 export const FOOTER_SEPARATOR = " · ";
 export const FOOTER_PRIORITY: Record<FooterSegmentKey, number> = {
-  cwd: 10, model: 9, tokens: 7, timer: 6, gitBranch: 8, gitStatus: 5,
-  gitCommit: 4, runtime: 5, contextBar: 8, thinking: 6, cost: 7, extStatus: 3,
+  cwd: 6, model: 9, tokens: 7, timer: 4, gitBranch: 10, gitStatus: 9,
+  gitCommit: 8, contextBar: 8, thinking: 6, cost: 7, extStatus: 3,
 };
 
 type FooterSegment = { key: FooterSegmentKey; text: string; priority: number };
@@ -29,18 +29,47 @@ type FooterSegment = { key: FooterSegmentKey; text: string; priority: number };
 function selectSegments(segments: FooterSegment[], maxWidth: number): FooterSegment[] {
   if (maxWidth <= 0 || segments.length === 0) return [];
   const selected: FooterSegment[] = [];
+  const deferred: FooterSegment[] = [];
   let selectedWidth = 0;
-  for (const segment of [...segments].sort((a, b) => b.priority - a.priority)) {
+  const sorted = [...segments].sort((a, b) => b.priority - a.priority);
+
+  // Keep a long high-priority segment from consuming space needed by shorter,
+  // lower-priority segments such as the Git indicators.
+  for (const segment of sorted) {
+    const separatorWidth = selected.length ? visibleWidth(FOOTER_SEPARATOR) : 0;
+    const available = maxWidth - selectedWidth - separatorWidth;
+    if (available <= 0) {
+      deferred.push(segment);
+      continue;
+    }
+    if (visibleWidth(segment.text) > available) {
+      // Git indicators are useful even when the commit subject or path leaves
+      // little room; keep a compact/truncated indicator instead of dropping it.
+      if (segment.key.startsWith("git")) {
+        const text = truncateToWidth(segment.text, available, "…");
+        if (text) {
+          selected.push({ ...segment, text });
+          selectedWidth += separatorWidth + visibleWidth(text);
+        }
+      } else {
+        deferred.push(segment);
+      }
+      continue;
+    }
+    selected.push(segment);
+    selectedWidth += separatorWidth + visibleWidth(segment.text);
+  }
+
+  for (const segment of deferred) {
     const separatorWidth = selected.length ? visibleWidth(FOOTER_SEPARATOR) : 0;
     const available = maxWidth - selectedWidth - separatorWidth;
     if (available <= 0) continue;
-    const text = visibleWidth(segment.text) <= available
-      ? segment.text
-      : truncateToWidth(segment.text, available, "…");
+    const text = truncateToWidth(segment.text, available, "…");
     if (!text) continue;
     selected.push({ ...segment, text });
     selectedWidth += separatorWidth + visibleWidth(text);
   }
+
   return selected;
 }
 
@@ -101,6 +130,7 @@ class PiTuiFooter implements Component {
   private readonly theme: Theme;
   private readonly getConfig: () => PiTuiConfig;
   private readonly getGitStatus: () => GitStatus | undefined;
+  private readonly timerHandle: ReturnType<typeof setInterval>;
   private readonly unsubscribeBranchChange: () => void;
 
   constructor(
@@ -117,11 +147,14 @@ class PiTuiFooter implements Component {
     this.getConfig = getConfig;
     this.getGitStatus = getGitStatus;
     this.startTime = Date.now();
+    this.timerHandle = setInterval(requestRender, 1000);
+    this.timerHandle.unref?.();
     this.unsubscribeBranchChange = footerData.onBranchChange(() => requestRender());
   }
 
   invalidate(): void {}
   dispose(): void {
+    clearInterval(this.timerHandle);
     this.unsubscribeBranchChange();
   }
 
@@ -135,6 +168,7 @@ class PiTuiFooter implements Component {
     const segmentCtx: SegmentContext = {
       theme: this.theme,
       cwd: this.ctx.sessionManager.getCwd(),
+      gitCwd: process.cwd(),
       width,
       footerData: this.footerData,
       config: config.footer,
@@ -149,12 +183,16 @@ class PiTuiFooter implements Component {
       usage: this.getUsage(),
       thinkingLevel: this.ctx.thinkingLevel,
       startTime: this.startTime,
+      // The extension owns the async snapshot; keep it in the segment context so
+      // branch, status, and commit renderers all use the same value.
       git: this.getGitStatus(),
       iconMode: config.icons.mode,
       iconOverrides,
     };
     const enabled = config.footer.segments;
-    const line1Keys: FooterSegmentKey[] = ["cwd", "gitBranch", "gitStatus", "gitCommit", "runtime"];
+    // Keep the two lines independent: the context bar is a line-1-only segment
+    // and must not affect selection of line-2 metrics.
+    const line1Keys: FooterSegmentKey[] = ["cwd", "timer", "gitBranch", "gitStatus", "gitCommit"];
     const line2Keys: FooterSegmentKey[] = ["model", "thinking", "tokens", "cost", "extStatus"];
     const makeZoneTexts = (keys: FooterSegmentKey[], availableWidth: number): Record<FooterZone, string> => {
       const groups: Record<FooterZone, FooterSegment[]> = { left: [], center: [], right: [] };
@@ -187,9 +225,8 @@ class PiTuiFooter implements Component {
     const contextRequested = enabled.contextBar &&
       (config.footer.context.showBar || config.footer.context.showCompact) &&
       contextUsage !== undefined && contextUsage.contextWindow > 0;
-    const contextIcon = config.icons.mode === "ascii"
-      ? ""
-      : config.footer.context.icon ?? resolveIcon(iconOverrides, "contextBar");
+    const configuredContextIcon = config.footer.context.icon ?? iconOverrides.contextBar;
+    const contextIcon = configuredContextIcon;
     const contextMinWidth = contextRequested
       ? contextBarMinimumWidth(
         this.theme,
@@ -238,15 +275,23 @@ class PiTuiFooter implements Component {
     };
 
     try {
-      for (const entry of this.ctx.sessionManager.getBranch()) {
-        if (entry.type !== "message") continue;
-        if (entry.message.role !== "assistant" && entry.message.role !== "toolResult") continue;
-        const messageUsage = entry.message.usage;
-        usage.input += messageUsage.input ?? 0;
-        usage.output += messageUsage.output ?? 0;
-        usage.cacheRead += messageUsage.cacheRead ?? 0;
-        usage.cacheWrite += messageUsage.cacheWrite ?? 0;
-        usage.cost += messageUsage.cost?.total ?? 0;
+      for (const entry of this.ctx.sessionManager.getEntries()) {
+        if (entry.type === "message") {
+          if (entry.message.role !== "assistant" && entry.message.role !== "toolResult") continue;
+          const messageUsage = entry.message.usage;
+          if (!messageUsage) continue;
+          usage.input += messageUsage.input ?? 0;
+          usage.output += messageUsage.output ?? 0;
+          usage.cacheRead += messageUsage.cacheRead ?? 0;
+          usage.cacheWrite += messageUsage.cacheWrite ?? 0;
+          usage.cost += messageUsage.cost?.total ?? 0;
+        } else if ((entry.type === "compaction" || entry.type === "branch_summary") && entry.usage) {
+          usage.input += entry.usage.input ?? 0;
+          usage.output += entry.usage.output ?? 0;
+          usage.cacheRead += entry.usage.cacheRead ?? 0;
+          usage.cacheWrite += entry.usage.cacheWrite ?? 0;
+          usage.cost += entry.usage.cost?.total ?? 0;
+        }
       }
     } catch {
       // Graceful fallback: usage data unavailable

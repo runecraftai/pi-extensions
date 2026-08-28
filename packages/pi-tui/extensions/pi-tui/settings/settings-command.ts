@@ -48,7 +48,6 @@ const COPY = {
     gitBranch: "Git branch",
     gitStatus: "Git status",
     gitCommit: "Git commit",
-    runtime: "Runtime",
     contextBar: "Context bar",
     model: "Model",
     thinking: "Thinking",
@@ -111,8 +110,6 @@ function buildAppearanceItems(config: PiTuiConfig): SettingItem[] {
   return [
     { id: "iconMode", label: COPY.labels.iconMode, currentValue: COPY.values.iconModes[config.icons.mode as keyof typeof COPY.values.iconModes] ?? config.icons.mode },
     { id: "cursorStyle", label: COPY.labels.cursorStyle, currentValue: COPY.values.cursorStyles[config.editor.cursorStyle] },
-    { id: "showBar", label: COPY.labels.showBar, currentValue: f(config.footer.context.showBar) },
-    { id: "showCompact", label: COPY.labels.showCompact, currentValue: f(config.footer.context.showCompact) },
   ];
 }
 
@@ -122,7 +119,7 @@ function buildFooterItems(config: PiTuiConfig): SettingItem[] {
   const f = (v: boolean) => (v ? COPY.values.on : COPY.values.off);
   const order: FooterSegmentKey[] = [
     "cwd", "timer", "gitBranch", "gitStatus", "gitCommit",
-    "runtime", "contextBar", "model", "thinking", "tokens", "cost", "extStatus",
+    "contextBar", "model", "thinking", "tokens", "cost", "extStatus",
   ];
   return order.map((key) => ({
     id: `seg:${key}`,

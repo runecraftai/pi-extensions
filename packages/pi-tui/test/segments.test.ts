@@ -12,10 +12,8 @@ import {
   renderGit,
   renderGitStatus,
   renderGitCommit,
-  renderRuntime,
   renderContextBar,
   renderSeparator,
-  renderStaleRuntime,
   renderModel,
   renderThinking,
   renderTokens,
@@ -137,20 +135,15 @@ describe("renderGit", () => {
   });
 });
 
-describe("renderRuntime", () => {
-  it("renders runtime uptime", () => {
-    const ctx = createMockContext({ startTime: Date.now() - 65000 });
-    const result = renderRuntime(ctx);
-    assert.ok(result.includes("uptime:"));
-    assert.ok(result.includes("1m05s"));
-  });
-});
-
 describe("renderContextBar", () => {
-  it("renders separator when showBar enabled", () => {
-    const ctx = createMockContext();
+  it("renders the smart context zone format", () => {
+    const ctx = createMockContext({
+      contextUsage: { tokens: 4_000, contextWindow: 100_000, percent: 4 },
+    });
     const result = renderContextBar(ctx);
-    assert.ok(result.includes("─"));
+    assert.ok(result.includes("🧠"));
+    assert.ok(result.includes("smart 36% left"));
+    assert.ok(result.includes("│"));
   });
 
   it("renders empty when showBar disabled", () => {
@@ -170,27 +163,6 @@ describe("renderSeparator", () => {
     const ctx = createMockContext();
     const result = renderSeparator(ctx);
     assert.equal(result, "│");
-  });
-});
-
-describe("renderStaleRuntime", () => {
-  it("renders stale <1m", () => {
-    const ctx = createMockContext({ startTime: Date.now() - 30000 });
-    const result = renderStaleRuntime(ctx);
-    assert.ok(result.includes("stale:"));
-    assert.ok(result.includes("<1m"));
-  });
-
-  it("renders stale minutes", () => {
-    const ctx = createMockContext({ startTime: Date.now() - 300000 });
-    const result = renderStaleRuntime(ctx);
-    assert.ok(result.includes("stale: 5m"));
-  });
-
-  it("renders stale hours", () => {
-    const ctx = createMockContext({ startTime: Date.now() - 5400000 });
-    const result = renderStaleRuntime(ctx);
-    assert.ok(result.includes("stale: 1h30m"));
   });
 });
 
@@ -215,10 +187,10 @@ describe("renderThinking", () => {
     assert.ok(result.includes("thinking: high"));
   });
 
-  it("renders empty when off", () => {
+  it("renders off when disabled", () => {
     const ctx = createMockContext({ thinkingLevel: "off" });
     const result = renderThinking(ctx);
-    assert.equal(result, "");
+    assert.equal(result, "thinking: off");
   });
 });
 
@@ -228,10 +200,21 @@ describe("renderTokens", () => {
       usage: { input: 1500, output: 500, cacheRead: 200, cacheWrite: 100, cost: 0 },
     });
     const result = renderTokens(ctx);
-    assert.ok(result.includes("↑1.5k"));
-    assert.ok(result.includes("↓500"));
+    assert.ok(result.includes("↓1.5k"));
+    assert.ok(result.includes("↑500"));
     assert.ok(result.includes("R200"));
     assert.ok(result.includes("W100"));
+  });
+
+  it("renders zero values when usage is available", () => {
+    const ctx = createMockContext({
+      usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 },
+    });
+    const result = renderTokens(ctx);
+    assert.ok(result.includes("↓0"));
+    assert.ok(result.includes("↑0"));
+    assert.ok(result.includes("R0"));
+    assert.ok(result.includes("W0"));
   });
 
   it("renders empty when no usage", () => {
@@ -250,10 +233,10 @@ describe("renderCost", () => {
     assert.equal(result, "$0.123");
   });
 
-  it("renders empty when no cost", () => {
+  it("renders zero cost when usage is unavailable", () => {
     const ctx = createMockContext({ usage: undefined });
     const result = renderCost(ctx);
-    assert.equal(result, "");
+    assert.equal(result, "$0.000");
   });
 });
 
@@ -281,8 +264,8 @@ describe("renderExtStatus", () => {
 describe("SEGMENT_RENDERERS", () => {
   it("renders each segment through the registry", () => {
     const expectedSegments = [
-      "cwd", "timer", "git", "runtime", "context_bar",
-      "separator", "stale_runtime", "model", "thinking",
+      "cwd", "timer", "git", "context_bar",
+      "separator", "model", "thinking",
       "tokens", "cost", "ext_status",
     ];
     const ctx = createMockContext();

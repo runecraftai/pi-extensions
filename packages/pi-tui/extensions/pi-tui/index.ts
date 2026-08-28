@@ -14,6 +14,7 @@ import { loadConfig, saveConfig, type PiTuiConfig } from "./config.ts";
 import { installHeader } from "./header/index.ts";
 import { installFooter } from "./footer/index.ts";
 import { emptyGitStatus, readGitStatus, type GitStatus } from "./footer/git.ts";
+import { installEditor } from "./editor/index.ts";
 import { registerSettingsCommand } from "./settings/settings-command.ts";
 
 export default function (pi: ExtensionAPI) {
@@ -21,6 +22,7 @@ export default function (pi: ExtensionAPI) {
   let activeContext: ExtensionContext | undefined;
   let cleanupHeader: (() => void) | undefined;
   let cleanupFooter: (() => void) | undefined;
+  let cleanupEditor: (() => void) | undefined;
   let gitStatus: GitStatus = emptyGitStatus();
   let gitRefreshGeneration = 0;
   let requestRender: (() => void) | undefined;
@@ -30,7 +32,7 @@ export default function (pi: ExtensionAPI) {
   const refreshGitStatus = async (ctx: ExtensionContext): Promise<void> => {
     if (ctx.mode !== "tui" || !config.enabled || !config.footer.enabled) return;
     const generation = ++gitRefreshGeneration;
-    const cwd = ctx.sessionManager.getCwd();
+    const cwd = process.cwd();
     const result = await readGitStatus(cwd, {
       readCommit: config.footer.git.showCommit,
       readTag: config.footer.git.showCommit,
@@ -73,16 +75,30 @@ export default function (pi: ExtensionAPI) {
     requestRender = undefined;
   };
 
-  const applyAll = (ctx: ExtensionContext, skipAnimation: boolean = false) => {
+  const applyEditor = (ctx: ExtensionContext) => {
+    if (ctx.mode !== "tui" || !config.enabled) return;
+    if (cleanupEditor) return;
+    cleanupEditor = installEditor(ctx, config.editor.cursorStyle, config.editor.roundedBorders).cleanup;
+  };
+
+  const uninstallEditor = () => {
+    cleanupEditor?.();
+    cleanupEditor = undefined;
+  };
+
+  const applyAll = async (ctx: ExtensionContext, skipAnimation: boolean = false) => {
     applyHeader(ctx, skipAnimation);
+    await refreshGitStatus(ctx);
+    if (activeContext !== ctx) return;
     applyFooter(ctx);
-    void refreshGitStatus(ctx);
+    applyEditor(ctx);
   };
 
   const uninstallAll = () => {
     gitRefreshGeneration++;
     uninstallHeader();
     uninstallFooter();
+    uninstallEditor();
   };
 
   registerSettingsCommand(pi, {

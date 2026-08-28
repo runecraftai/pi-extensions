@@ -67,7 +67,6 @@ const DEFAULT_CONFIG = {
       gitBranch: true,
       gitStatus: true,
       gitCommit: false,
-      runtime: true,
       contextBar: true,
       model: true,
       thinking: true,
@@ -121,7 +120,7 @@ describe("Config", () => {
       const segs = DEFAULT_CONFIG.footer.segments;
       const requiredKeys = [
         "cwd", "timer", "gitBranch", "gitStatus", "gitCommit",
-        "runtime", "contextBar", "model", "thinking", "tokens", "cost", "extStatus",
+        "contextBar", "model", "thinking", "tokens", "cost", "extStatus",
       ];
       for (const key of requiredKeys) {
         assert.ok(key in segs, `Missing footer segment: ${key}`);

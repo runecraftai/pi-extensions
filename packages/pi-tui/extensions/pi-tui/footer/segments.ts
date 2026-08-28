@@ -5,12 +5,13 @@ import type { ReadonlyFooterDataProvider } from "@earendil-works/pi-coding-agent
 import type { Theme } from "@earendil-works/pi-coding-agent";
 import type { FooterConfig } from "../config.ts";
 import { renderContextBar as renderUsageContextBar, renderContextCompact } from "./context-bar.ts";
-import { iconPrefix, resolveIcon, type SegmentIcons } from "../icons.ts";
+import { iconPrefix, type SegmentIcons } from "../icons.ts";
 import type { GitStatus } from "./git.ts";
 
 export interface SegmentContext {
   theme: Theme;
   cwd: string;
+  gitCwd?: string;
   width: number;
   footerData: ReadonlyFooterDataProvider;
   config: {
@@ -19,7 +20,6 @@ export interface SegmentContext {
     tokens: FooterConfig["tokens"];
     telemetry: FooterConfig["telemetry"];
     cost?: FooterConfig["cost"];
-    runtime?: FooterConfig["runtime"];
     timer?: FooterConfig["timer"];
     model?: FooterConfig["model"];
     thinking?: FooterConfig["thinking"];
@@ -38,7 +38,7 @@ export interface SegmentContext {
 }
 
 function segmentIcon(ctx: SegmentContext, segment: keyof SegmentIcons, configured?: string): string {
-  if (!ctx.iconMode || ctx.iconMode === "ascii") return "";
+  if (!ctx.iconMode || ctx.iconMode === "ascii") return configured ? `${ctx.theme.fg("muted", configured)} ` : "";
   const overrides = { ...(ctx.iconOverrides ?? {}) };
   if (configured !== undefined) overrides[segment] = configured;
   return iconPrefix(ctx.theme, overrides, segment);
@@ -68,7 +68,9 @@ export function renderTimer(ctx: SegmentContext): string {
 }
 
 function branch(ctx: SegmentContext): string | undefined {
-  return ctx.git?.branch ?? ctx.footerData.getGitBranch() ?? undefined;
+  return ctx.git?.branch
+    ?? ctx.footerData.getGitBranch()
+    ?? (ctx.git?.commit?.detached ? "detached" : undefined);
 }
 
 export function renderGitBranch(ctx: SegmentContext): string {
@@ -118,25 +120,13 @@ export function renderGitCommit(ctx: SegmentContext): string {
   if (!ctx.config.git.showCommit) return "";
   const value = ctx.git?.commit?.oid
     ? `${ctx.git.commit.oid.slice(0, 7)}${ctx.git.commit.tag ? ` ${ctx.git.commit.tag}` : ""}${ctx.git.commit.subject ? ` ${ctx.git.commit.subject}` : ""}`
-    : getGitCommit(ctx.cwd);
+    : getGitCommit(ctx.gitCwd ?? ctx.cwd);
   return value ? `${segmentIcon(ctx, "gitCommit", ctx.config.git?.icon)}${ctx.theme.fg("dim", value)}` : "";
 }
 
 /** Combined renderer retained for callers using the legacy `git` registry key. */
 export function renderGit(ctx: SegmentContext): string {
   return [renderGitBranch(ctx), renderGitStatus(ctx), renderGitCommit(ctx)].filter(Boolean).join(" ");
-}
-
-export function renderRuntime(ctx: SegmentContext): string {
-  const elapsed = Math.max(0, Math.floor((Date.now() - (ctx.startTime ?? Date.now())) / 1000));
-  const hours = Math.floor(elapsed / 3600);
-  const minutes = Math.floor((elapsed % 3600) / 60);
-  const time = hours > 0
-    ? `${hours}h${minutes.toString().padStart(2, "0")}m`
-    : minutes > 0
-      ? `${minutes}m${(elapsed % 60).toString().padStart(2, "0")}s`
-      : `${elapsed}s`;
-  return `${segmentIcon(ctx, "runtime", ctx.config.runtime?.icon)}${ctx.theme.fg("dim", `uptime: ${time}`)}`;
 }
 
 export function renderContextBar(ctx: SegmentContext): string {
@@ -146,9 +136,7 @@ export function renderContextBar(ctx: SegmentContext): string {
     ? ctx.theme.fg("dim", "─".repeat(Math.max(0, ctx.width)))
     : "";
   if (usage.contextWindow <= 0) return "";
-  const icon = ctx.iconMode === "ascii"
-    ? ""
-    : ctx.config.context.icon ?? resolveIcon(ctx.iconOverrides, "contextBar");
+  const icon = ctx.config.context.icon ?? ctx.iconOverrides?.contextBar;
   if (ctx.config.context.showCompact) {
     return renderContextCompact(ctx.theme, usage.percent ?? 0, icon);
   }
@@ -166,33 +154,39 @@ export function renderSeparator(ctx: SegmentContext): string {
   return ctx.theme.fg("dim", "│");
 }
 
-export function renderStaleRuntime(ctx: SegmentContext): string {
-  const minutes = Math.max(0, Math.floor((Date.now() - (ctx.startTime ?? Date.now())) / 60000));
-  const value = minutes < 1 ? "<1m" : minutes < 60 ? `${minutes}m` : `${Math.floor(minutes / 60)}h${(minutes % 60).toString().padStart(2, "0")}m`;
-  return ctx.theme.fg("dim", `stale: ${value}`);
-}
-
 export function renderModel(ctx: SegmentContext): string {
   return `${segmentIcon(ctx, "model", ctx.config.model?.icon)}${ctx.modelId ?? "no-model"}`;
 }
 
 export function renderThinking(ctx: SegmentContext): string {
-  if (!ctx.thinkingLevel || ctx.thinkingLevel === "off") return "";
-  return `${segmentIcon(ctx, "thinking", ctx.config.thinking?.icon)}${ctx.theme.fg("dim", `thinking: ${ctx.thinkingLevel}`)}`;
+  const level = ctx.thinkingLevel || "off";
+  return `${segmentIcon(ctx, "thinking", ctx.config.thinking?.icon)}${ctx.theme.fg("dim", `thinking: ${level}`)}`;
 }
 
 export function renderTokens(ctx: SegmentContext): string {
   if (!ctx.usage) return "";
   const parts: string[] = [];
-  if (ctx.config.tokens.showInput && ctx.usage.input) parts.push(`${segmentIcon(ctx, "tokenInput", ctx.config.tokens.inputIcon)}↑${formatTokens(ctx.usage.input)}`);
-  if (ctx.config.tokens.showOutput && ctx.usage.output) parts.push(`${segmentIcon(ctx, "tokenOutput", ctx.config.tokens.outputIcon)}↓${formatTokens(ctx.usage.output)}`);
-  if (ctx.config.tokens.showCache && ctx.usage.cacheRead) parts.push(`${segmentIcon(ctx, "cacheHit", ctx.config.tokens.cacheIcon)}R${formatTokens(ctx.usage.cacheRead)}`);
-  if (ctx.config.tokens.showCache && ctx.usage.cacheWrite) parts.push(`W${formatTokens(ctx.usage.cacheWrite)}`);
+  if (ctx.config.tokens.showInput) {
+    const icon = segmentIcon(ctx, "tokenInput", ctx.config.tokens.inputIcon);
+    parts.push(`${icon}${icon ? "" : "↓"}${formatTokens(ctx.usage.input)}`);
+  }
+  if (ctx.config.tokens.showOutput) {
+    const icon = segmentIcon(ctx, "tokenOutput", ctx.config.tokens.outputIcon);
+    parts.push(`${icon}${icon ? "" : "↑"}${formatTokens(ctx.usage.output)}`);
+  }
+  if (ctx.config.tokens.showCache) {
+    parts.push(`${segmentIcon(ctx, "cacheHit", ctx.config.tokens.cacheIcon)}R${formatTokens(ctx.usage.cacheRead)}`);
+  }
+  if (ctx.config.tokens.showCache) {
+    const icon = ctx.usage.cacheRead ? "" : segmentIcon(ctx, "cacheHit", ctx.config.tokens.cacheIcon);
+    parts.push(`${icon}W${formatTokens(ctx.usage.cacheWrite)}`);
+  }
   return parts.join(" ");
 }
 
 export function renderCost(ctx: SegmentContext): string {
-  return ctx.usage?.cost ? `${segmentIcon(ctx, "cost", ctx.config.cost?.icon)}$${ctx.usage.cost.toFixed(3)}` : "";
+  const cost = ctx.usage?.cost ?? 0;
+  return `${segmentIcon(ctx, "cost", ctx.config.cost?.icon)}$${cost.toFixed(3)}`;
 }
 
 export function renderExtStatus(ctx: SegmentContext): string {
@@ -224,10 +218,8 @@ export const SEGMENT_RENDERERS: Record<string, SegmentRenderer> = {
   gitBranch: renderGitBranch,
   gitStatus: renderGitStatus,
   gitCommit: renderGitCommit,
-  runtime: renderRuntime,
   context_bar: renderContextBar,
   separator: renderSeparator,
-  stale_runtime: renderStaleRuntime,
   model: renderModel,
   thinking: renderThinking,
   tokens: renderTokens,
