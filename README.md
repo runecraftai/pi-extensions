@@ -51,7 +51,7 @@ The package reads `~/.pi/agent/pi-tui.json`. Configure footer segments under `fo
 - **Masking condition:** The earlier integration looked for `footerData` on `ExtensionContext`, although pi supplies it as the third argument to the `ctx.ui.setFooter` factory. Deferring registration also captured a context that could become stale when pi replaced the session. Successful extension loading and the built-in footer masked both issues.
 - **Visible symptom:** The config loaded, but the commander saw the default or incomplete footer instead of the configured context and related segments.
 - **Smallest counterfactual and proven path:** Passing the factory-provided data and registering from the active `session_start` context makes the package-root and direct-entry local launches render configured segments. The regression test covers package metadata, `~/.pi/agent/pi-tui.json`, the factory provider, and rendering.
-- **Release validation:** The `publish.yml` workflow publishes `npm:@runecraft/pi-tui` when its package version is not already present in the npm registry.
+- **Release validation:** The release workflow publishes `npm:@runecraft/pi-tui` when its package version is not already present in the npm registry.
 - **Runtime errors:** The implementation keeps registration/rendering errors visible. Only unavailable usage data has an explicit fallback; documentation does not substitute for runtime behavior.
 - **PR reconciliation:** PR #3 is closed without merge and is superseded by this fix. PRs #4 and #6 are already merged and closed; their renderer/settings work is retained. None is closed, deleted, or merged by this change.
 
@@ -95,19 +95,19 @@ Each package has its own README with package-specific details. See the pi [exten
 Package changes are released independently. Use a conventional commit scoped to
 the package (for example, `feat(pi-tui): ...`). When committed Changesets are
 present, the release workflow opens a version pull request on a push to `main`.
-After that pull request is merged, the publish workflow publishes packages whose
+After that pull request is merged, the same workflow publishes packages whose
 versions are not already in the npm registry.
 
 ### Release setup
 
-`.github/workflows/publish.yml` requires an `NPM_TOKEN` repository secret with
-publish access to `@runecraft/pi-tui`. Add it in the repository's **Settings →
+`.github/workflows/release.yml` requires an `NPM_TOKEN` repository secret with
+publish access to the public packages. Add it in the repository's **Settings →
 Secrets and variables → Actions** page. GitHub Actions also requests an OIDC
 token so npm provenance is attached to each publication. The private workspace
 root is never published. For this release, `packages/pi-tui/package.json` already
-sets version `0.2.1`, so merging it lets `publish.yml` publish directly without a
-version pull request. Do not add versions or publish packages manually for normal
-changes.
+sets version `0.2.1`, so merging it lets the release workflow publish directly
+without a version pull request. Do not add versions or publish packages manually
+for normal changes.
 
 ## License
 
