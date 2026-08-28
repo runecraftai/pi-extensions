@@ -40,7 +40,7 @@ export function getPublishablePackages(root = process.cwd()) {
 }
 
 function changedPackages(root, sha) {
-  const files = execFileSync("git", ["diff-tree", "--no-commit-id", "--name-only", "-r", sha], { cwd: root, encoding: "utf8" }).trim().split("\n");
+  const files = execFileSync("git", ["diff-tree", "--no-commit-id", "--name-only", "-r", sha], { cwd: root, encoding: "utf8", maxBuffer: 10 * 1024 * 1024 }).trim().split("\n");
   return getPublishablePackages(root)
     .filter((pkg) => files.some((file) => file.startsWith(`packages/${pkg.name.split("/").pop()}/`)))
     .map((pkg) => pkg.name);
@@ -64,7 +64,7 @@ export function buildChangesetContent(changes) {
 export function generate(root = process.cwd()) {
   const headSubject = execFileSync("git", ["log", "-1", "--format=%s"], { cwd: root, encoding: "utf8" }).trim();
   if (shouldSkipReleaseCommit(headSubject)) return new Map();
-  const commits = execFileSync("git", ["log", "--format=%H%x00%s%x00%b%x00", `${lastRelease(root)}..HEAD`], { cwd: root, encoding: "utf8" });
+  const commits = execFileSync("git", ["log", "--format=%H%x00%s%x00%b%x00", `${lastRelease(root)}..HEAD`], { cwd: root, encoding: "utf8", maxBuffer: 10 * 1024 * 1024 });
   const changes = new Map();
   for (const { sha, parsed } of parseCommitLog(commits)) {
     if (!parsed.type || !["feat", "fix", "perf", "refactor"].includes(parsed.type)) continue;
