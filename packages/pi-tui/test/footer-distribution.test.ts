@@ -73,6 +73,6 @@ describe("canonical footer packing", () => {
     assert.ok(visibleWidth(line) <= 140);
     assert.ok(!line.includes("…"));
     assert.ok(line.includes("🧠"));
-    assert.ok(line.includes("warm 30% left"));
+    assert.ok(line.includes("warm 60% left"));
   });
 });
