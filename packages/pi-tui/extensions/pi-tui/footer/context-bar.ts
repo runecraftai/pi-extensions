@@ -28,7 +28,7 @@ function renderBar(theme: Theme, pct: number, color: ContextColor): string {
 function renderUsageText(theme: Theme, pct: number, icon?: string): string {
   const clampedPct = Math.max(0, Math.min(100, pct));
   const context = zone(clampedPct);
-  const remaining = Math.max(0, Math.round(context.ceiling - clampedPct));
+  const remaining = Math.max(0, Math.round(100 - clampedPct));
   const resolvedIcon = icon ?? "🧠";
   const iconText = resolvedIcon ? `${theme.fg(context.color, resolvedIcon)} ` : "";
   return `${iconText}${renderBar(theme, clampedPct, context.color)} ${theme.fg(context.color, context.label)} ${theme.fg(context.color, `${remaining}% left`)}`;

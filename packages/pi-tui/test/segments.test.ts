@@ -142,7 +142,7 @@ describe("renderContextBar", () => {
     });
     const result = renderContextBar(ctx);
     assert.ok(result.includes("🧠"));
-    assert.ok(result.includes("smart 36% left"));
+    assert.ok(result.includes("smart 96% left"));
     assert.ok(result.includes("│"));
   });
 
