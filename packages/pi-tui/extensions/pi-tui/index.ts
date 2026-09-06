@@ -16,6 +16,8 @@ import { installFooter } from "./footer/index.ts";
 import { emptyGitStatus, readGitStatus, type GitStatus } from "./footer/git.ts";
 import { installEditor } from "./editor/index.ts";
 import { registerSettingsCommand } from "./settings/settings-command.ts";
+import { installTelemetry, type TelemetryHandle } from "./telemetry/index.ts";
+import { registerContextCommand } from "./pickers/context.ts";
 
 export default function (pi: ExtensionAPI) {
   let config: PiTuiConfig = loadConfig();
@@ -23,6 +25,7 @@ export default function (pi: ExtensionAPI) {
   let cleanupHeader: (() => void) | undefined;
   let cleanupFooter: (() => void) | undefined;
   let cleanupEditor: (() => void) | undefined;
+  let telemetryHandle: TelemetryHandle | undefined;
   let gitStatus: GitStatus = emptyGitStatus();
   let gitRefreshGeneration = 0;
   let requestRender: (() => void) | undefined;
@@ -66,6 +69,7 @@ export default function (pi: ExtensionAPI) {
       getConfig,
       () => gitStatus,
       (fn) => { requestRender = fn; },
+      telemetryHandle?.getSnapshot,
     );
   };
 
@@ -73,6 +77,17 @@ export default function (pi: ExtensionAPI) {
     cleanupFooter?.();
     cleanupFooter = undefined;
     requestRender = undefined;
+  };
+
+  const applyTelemetry = (ctx: ExtensionContext) => {
+    if (ctx.mode !== "tui" || !config.enabled || !config.footer.enabled) return;
+    if (telemetryHandle) return;
+    telemetryHandle = installTelemetry(pi, ctx, getConfig, () => requestRender?.());
+  };
+
+  const uninstallTelemetry = () => {
+    telemetryHandle?.dispose();
+    telemetryHandle = undefined;
   };
 
   const applyEditor = (ctx: ExtensionContext) => {
@@ -88,6 +103,7 @@ export default function (pi: ExtensionAPI) {
 
   const applyAll = async (ctx: ExtensionContext, skipAnimation: boolean = false) => {
     applyHeader(ctx, skipAnimation);
+    applyTelemetry(ctx); // Install telemetry before footer so getter is available
     applyFooter(ctx);
     applyEditor(ctx);
     void refreshGitStatus(ctx);
@@ -97,8 +113,12 @@ export default function (pi: ExtensionAPI) {
     gitRefreshGeneration++;
     uninstallHeader();
     uninstallFooter();
+    uninstallTelemetry();
     uninstallEditor();
   };
+
+  // Register context inspector command
+  registerContextCommand(pi, getConfig);
 
   registerSettingsCommand(pi, {
     getConfig,

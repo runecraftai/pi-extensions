@@ -130,6 +130,7 @@ class PiTuiFooter implements Component {
   private readonly theme: Theme;
   private readonly getConfig: () => PiTuiConfig;
   private readonly getGitStatus: () => GitStatus | undefined;
+  private readonly getTelemetry: (() => import("../telemetry/metrics.ts").TelemetrySnapshot) | undefined;
   private readonly timerHandle: ReturnType<typeof setInterval>;
   private readonly unsubscribeBranchChange: () => void;
 
@@ -140,12 +141,14 @@ class PiTuiFooter implements Component {
     getConfig: () => PiTuiConfig,
     getGitStatus: () => GitStatus | undefined,
     requestRender: () => void,
+    getTelemetry?: () => import("../telemetry/metrics.ts").TelemetrySnapshot,
   ) {
     this.ctx = ctx;
     this.footerData = footerData;
     this.theme = theme;
     this.getConfig = getConfig;
     this.getGitStatus = getGitStatus;
+    this.getTelemetry = getTelemetry;
     this.startTime = Date.now();
     this.timerHandle = setInterval(requestRender, 1000);
     this.timerHandle.unref?.();
@@ -188,6 +191,7 @@ class PiTuiFooter implements Component {
       git: this.getGitStatus(),
       iconMode: config.icons.mode,
       iconOverrides,
+      telemetry: this.getTelemetry?.(),
     };
     const enabled = config.footer.segments;
     // Keep the two lines independent: the context bar is a line-1-only segment
@@ -306,11 +310,12 @@ export function installFooter(
   getConfig: () => PiTuiConfig,
   getGitStatus: () => GitStatus | undefined = () => undefined,
   setRequestRender?: (requestRender: (() => void) | undefined) => void,
+  getTelemetry?: () => import("../telemetry/metrics.ts").TelemetrySnapshot,
 ): () => void {
   ctx.ui.setFooter((tui, theme, footerData) => {
     const requestRender = () => tui.requestRender();
     setRequestRender?.(requestRender);
-    return new PiTuiFooter(ctx, footerData, theme, getConfig, getGitStatus, requestRender);
+    return new PiTuiFooter(ctx, footerData, theme, getConfig, getGitStatus, requestRender, getTelemetry);
   });
   return () => {
     setRequestRender?.(undefined);

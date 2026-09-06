@@ -68,7 +68,7 @@ export interface FooterConfig {
     cacheIcon?: string;
   };
   cost: { icon?: string };
-  telemetry: { enabled: boolean; tps: boolean; ttft: boolean; stalls: boolean };
+  telemetry: { enabled: boolean; tps: boolean; ttft: boolean; stalls: boolean; state: boolean; tool: boolean };
   timer: { icon?: string };
   model: { icon?: string };
   thinking: { icon?: string };
@@ -145,7 +145,7 @@ const DEFAULT_FOOTER: FooterConfig = {
   context: { showBar: true, showCompact: false },
   tokens: { showInput: true, showOutput: true, showCache: true },
   cost: {},
-  telemetry: { enabled: false, tps: true, ttft: true, stalls: true },
+  telemetry: { enabled: false, tps: true, ttft: true, stalls: true, state: true, tool: true },
   timer: {},
   model: {},
   thinking: {},

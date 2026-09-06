@@ -7,6 +7,7 @@ import type { FooterConfig } from "../config.ts";
 import { renderContextBar as renderUsageContextBar, renderContextCompact } from "./context-bar.ts";
 import { iconPrefix, type SegmentIcons } from "../icons.ts";
 import type { GitStatus } from "./git.ts";
+import { formatElapsed, formatTps, formatTtft, STATE_ICONS, type TelemetrySnapshot } from "../telemetry/metrics.ts";
 
 export interface SegmentContext {
   theme: Theme;
@@ -35,6 +36,7 @@ export interface SegmentContext {
   git?: GitStatus;
   iconMode?: string;
   iconOverrides?: Partial<SegmentIcons>;
+  telemetry?: TelemetrySnapshot;
 }
 
 function segmentIcon(ctx: SegmentContext, segment: keyof SegmentIcons, configured?: string): string {
@@ -197,6 +199,54 @@ export function renderExtStatus(ctx: SegmentContext): string {
   return statuses.length ? `${segmentIcon(ctx, "extensionStatus", ctx.config.extStatus?.icon)}${statuses.join(" ")}` : "";
 }
 
+/* ── Telemetry segment renderers ── */
+
+export function renderTelemetryState(ctx: SegmentContext): string {
+  if (!ctx.config.telemetry?.enabled || !ctx.config.telemetry?.state) return "";
+  const t = ctx.telemetry;
+  if (!t) return "";
+  const icon = STATE_ICONS[t.state] ?? "·";
+  return `${icon}`;
+}
+
+export function renderTelemetryTps(ctx: SegmentContext): string {
+  if (!ctx.config.telemetry?.enabled || !ctx.config.telemetry?.tps) return "";
+  const t = ctx.telemetry;
+  if (!t || t.tps === null) return "";
+  return `⚡${formatTps(t.tps)}`;
+}
+
+export function renderTelemetryTtft(ctx: SegmentContext): string {
+  if (!ctx.config.telemetry?.enabled || !ctx.config.telemetry?.ttft) return "";
+  const t = ctx.telemetry;
+  if (!t || t.ttft === null) return "";
+  return `🎯${formatTtft(t.ttft)}`;
+}
+
+export function renderTelemetryElapsed(ctx: SegmentContext): string {
+  if (!ctx.config.telemetry?.enabled) return "";
+  const t = ctx.telemetry;
+  if (!t || t.elapsed <= 0) return "";
+  return `⏱${formatElapsed(t.elapsed)}`;
+}
+
+export function renderTelemetryStalls(ctx: SegmentContext): string {
+  if (!ctx.config.telemetry?.enabled || !ctx.config.telemetry?.stalls) return "";
+  const t = ctx.telemetry;
+  if (!t || t.lastStallTimestamp === null) return "";
+  const ago = Date.now() - t.lastStallTimestamp;
+  if (ago > 30000) return ""; // Don't show stale stall info
+  return `⚠stall${Math.floor(ago / 1000)}s ago`;
+}
+
+export function renderTelemetryTool(ctx: SegmentContext): string {
+  if (!ctx.config.telemetry?.enabled || !ctx.config.telemetry?.tool) return "";
+  const t = ctx.telemetry;
+  if (!t || !t.activeTool) return "";
+  const duration = t.activeTool.duration > 0 ? ` ${formatElapsed(t.activeTool.duration)}` : "";
+  return `🔧${t.activeTool.name}${duration}`;
+}
+
 function formatTokens(count: number): string {
   if (count < 1000) return count.toString();
   if (count < 10000) return `${(count / 1000).toFixed(1)}k`;
@@ -226,4 +276,10 @@ export const SEGMENT_RENDERERS: Record<string, SegmentRenderer> = {
   cost: renderCost,
   ext_status: renderExtStatus,
   extStatus: renderExtStatus,
+  telemetryState: renderTelemetryState,
+  telemetryTps: renderTelemetryTps,
+  telemetryTtft: renderTelemetryTtft,
+  telemetryElapsed: renderTelemetryElapsed,
+  telemetryStalls: renderTelemetryStalls,
+  telemetryTool: renderTelemetryTool,
 };
