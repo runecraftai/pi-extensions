@@ -10,7 +10,11 @@ Customizable TUI extension for [pi](https://pi.dev) with an animated header, con
 - **Smart Context Bar** — Smart/warm/dumb zones at 40% and 70% context usage, plus a compact mode
 - **Async Git Status** — Branch, ahead/behind, staged, modified, untracked, renamed, deleted, conflicted, and stash counts
 - **Priority Degradation** — Lower-priority footer segments are dropped first on narrow terminals
-- **Interactive Settings** — `/pi-tui` opens General, Appearance, and Footer settings; `/pi-tui reload` reloads the JSON config
+- **Interactive Settings** — `/pi-tui` opens General, Appearance, Footer, and Tasks settings; `/pi-tui reload` reloads the JSON config
+- **Confirmation Dialog** — Reusable `[y]/[n]` confirmation for destructive actions with risk-level styling
+- **Connection Status Indicator** — Optional footer segment showing fresh/stale data with configurable staleness threshold
+- **Conversations Picker** — Browse and resume recent sessions with model info via `/pi-tui conversations`
+- **Task Status Dashboard** — Read-only view of Squad tasks (status, project, elapsed, model) in Settings or via `/pi-tui tasks`
 
 ## Installation
 
@@ -80,7 +84,8 @@ Create or edit `~/.pi/agent/pi-tui.json`. Partial objects are supported; omitted
       "thinking": true,
       "tokens": true,
       "cost": true,
-      "extStatus": true
+      "extStatus": true,
+      "connectionStatus": false
     },
     "zones": {
       "cwd": "left",
@@ -93,11 +98,13 @@ Create or edit `~/.pi/agent/pi-tui.json`. Partial objects are supported; omitted
       "thinking": "right",
       "tokens": "right",
       "cost": "right",
-      "extStatus": "right"
+      "extStatus": "right",
+      "connectionStatus": "right"
     },
     "git": { "showBranch": true, "showStatus": true, "showCommit": false },
     "context": { "showBar": true, "showCompact": false },
-    "tokens": { "showInput": true, "showOutput": true, "showCache": true }
+    "tokens": { "showInput": true, "showOutput": true, "showCache": true },
+    "connectionStatus": { "enabled": false, "stalenessThresholdMs": 10000 }
   },
   "icons": { "mode": "auto", "custom": {} }
 }
@@ -121,6 +128,7 @@ Footer icon options are configured on the matching footer object:
 | Token input/output/cache | `footer.tokens.inputIcon`, `outputIcon`, `cacheIcon` |
 | Cost | `footer.cost.icon` |
 | Extension status | `footer.extStatus.icon` |
+| Connection status | `footer.connectionStatus.icon` |
 
 Set any icon to `""` to suppress it.
 
@@ -145,6 +153,7 @@ press **Enter**.
 | `tokens` | Input, output, and cache usage |
 | `cost` | Session cost |
 | `extStatus` | Extension status values |
+| `connectionStatus` | Fresh/stale data indicator (default off; configurable via `footer.connectionStatus`) |
 
 The default footer packs project identity on the left and metrics on the right.
 The context bar uses the remaining space when configured. Priority order is
@@ -163,6 +172,15 @@ source identifier `npm:@runecraft/pi-tui` shown above.
 ## Settings
 
 Run `/pi-tui` to open the settings dialog. **Tab** / **←** / **→** switch tabs, **↑** / **↓** navigate, **Space** toggles values, **Enter** cycles footer zones, and **Esc** / **q** closes the dialog.
+
+### Subcommands
+
+| Command | Description |
+|---------|-------------|
+| `/pi-tui` | Open settings (General, Appearance, Footer, Tasks tabs) |
+| `/pi-tui reload` | Reload the JSON config |
+| `/pi-tui conversations` | Open the conversations picker |
+| `/pi-tui tasks` | Open the tasks overlay |
 
 ## License
 

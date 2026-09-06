@@ -18,11 +18,13 @@ import {
 } from "@earendil-works/pi-tui";
 import type { FooterSegmentKey, FooterZone, PiTuiConfig } from "../config.ts";
 import { loadConfig, saveConfig } from "../config.ts";
+import { readAllTasks, getStateIcon, formatElapsed } from "../control-center/state-reader.ts";
+import { openConversationsPicker } from "../pickers/conversations.ts";
 
 /* ── Tab & copy ── */
 
-type Tab = "general" | "appearance" | "footer";
-const TABS: Tab[] = ["general", "appearance", "footer"];
+type Tab = "general" | "appearance" | "footer" | "tasks";
+const TABS: Tab[] = ["general", "appearance", "footer", "tasks"];
 
 interface SettingItem {
   id: string;
@@ -32,7 +34,7 @@ interface SettingItem {
 
 const COPY = {
   title: "Pi TUI Settings",
-  tabs: { general: "General", appearance: "Appearance", footer: "Footer" },
+  tabs: { general: "General", appearance: "Appearance", footer: "Footer", tasks: "Tasks" },
   hint: "Tab/←/→: tabs · ↑/↓: move · Space: toggle · Enter: cycle zone (Footer) · Esc/q: close",
   labels: {
     enabled: "Extension enabled",
@@ -54,6 +56,7 @@ const COPY = {
     tokens: "Tokens",
     cost: "Cost",
     extStatus: "Extension status",
+    connectionStatus: "Connection status",
   },
   values: {
     on: "On",
@@ -119,7 +122,7 @@ function buildFooterItems(config: PiTuiConfig): SettingItem[] {
   const f = (v: boolean) => (v ? COPY.values.on : COPY.values.off);
   const order: FooterSegmentKey[] = [
     "cwd", "timer", "gitBranch", "gitStatus", "gitCommit",
-    "contextBar", "model", "thinking", "tokens", "cost", "extStatus",
+    "contextBar", "model", "thinking", "tokens", "cost", "extStatus", "connectionStatus",
   ];
   return order.map((key) => ({
     id: `seg:${key}`,
@@ -128,11 +131,24 @@ function buildFooterItems(config: PiTuiConfig): SettingItem[] {
   }));
 }
 
+function buildTaskItems(): SettingItem[] {
+  const tasks = readAllTasks();
+  if (tasks.length === 0) {
+    return [{ id: "no-tasks", label: "No tasks found", currentValue: "" }];
+  }
+  return tasks.slice(0, 20).map((task) => ({
+    id: `task:${task.slug}`,
+    label: `${getStateIcon(task.displayState)} ${task.slug}`,
+    currentValue: `${task.project} · ${formatElapsed(task.elapsedMs)} · ${task.model}`,
+  }));
+}
+
 function buildItems(tab: Tab, config: PiTuiConfig): SettingItem[] {
   switch (tab) {
     case "general": return buildGeneralItems(config);
     case "appearance": return buildAppearanceItems(config);
     case "footer": return buildFooterItems(config);
+    case "tasks": return buildTaskItems();
   }
 }
 
@@ -318,19 +334,29 @@ export function registerSettingsCommand(
     onOverlayClosed?: () => void;
   },
 ): void {
+  // Main /pi-tui command — opens Control Center
   pi.registerCommand("pi-tui", {
-    description: "Open the pi-tui settings UI, or use /pi-tui reload",
+    description: "Open the pi-tui Control Center",
     handler: async (args, ctx: ExtensionContext) => {
       const subcommand = args?.trim() ?? "";
 
+      // Legacy subcommands routed to standalone commands
       if (subcommand === "reload") {
         hooks.onConfigChanged(loadConfig());
         ctx.ui.notify("TUI reloaded from config", "info");
         return;
       }
-
+      if (subcommand === "conversations" || subcommand === "conv") {
+        await openConversationsPicker(ctx);
+        return;
+      }
+      if (subcommand === "tasks") {
+        const { openTasksOverlay } = await import("../control-center/tasks.ts");
+        await openTasksOverlay(ctx);
+        return;
+      }
       if (subcommand !== "") {
-        ctx.ui.notify(`Unknown /pi-tui subcommand: "${subcommand}". Available: settings, reload`, "warning");
+        ctx.ui.notify(`Unknown /pi-tui subcommand: "${subcommand}". Try /pi-tui-tasks, /pi-tui-conversations, /pi-tui-reload`, "warning");
         return;
       }
 
@@ -354,6 +380,30 @@ export function registerSettingsCommand(
       }, { overlay: true });
 
       hooks.onOverlayClosed?.();
+    },
+  });
+
+  // Standalone subcommands for slash autocomplete
+  pi.registerCommand("pi-tui-reload", {
+    description: "Reload pi-tui config from disk",
+    handler: async (_args, ctx: ExtensionContext) => {
+      hooks.onConfigChanged(loadConfig());
+      ctx.ui.notify("TUI reloaded from config", "info");
+    },
+  });
+
+  pi.registerCommand("pi-tui-conversations", {
+    description: "Open the conversations picker",
+    handler: async (_args, ctx: ExtensionContext) => {
+      await openConversationsPicker(ctx);
+    },
+  });
+
+  pi.registerCommand("pi-tui-tasks", {
+    description: "Open the tasks dashboard",
+    handler: async (_args, ctx: ExtensionContext) => {
+      const { openTasksOverlay } = await import("../control-center/tasks.ts");
+      await openTasksOverlay(ctx);
     },
   });
 }
