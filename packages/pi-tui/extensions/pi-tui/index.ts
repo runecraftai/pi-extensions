@@ -16,6 +16,7 @@ import { installFooter } from "./footer/index.ts";
 import { emptyGitStatus, readGitStatus, type GitStatus } from "./footer/git.ts";
 import { installEditor } from "./editor/index.ts";
 import { registerSettingsCommand } from "./settings/settings-command.ts";
+import { registerRenderers } from "./renderers/index.ts";
 
 export default function (pi: ExtensionAPI) {
   let config: PiTuiConfig = loadConfig();
@@ -111,6 +112,8 @@ export default function (pi: ExtensionAPI) {
       }
     },
   });
+
+  registerRenderers(pi, getConfig);
 
   pi.on("session_start", (event, ctx) => {
     activeContext = ctx;
