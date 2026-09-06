@@ -43,7 +43,7 @@ pi -e ./packages/pi-tui/extensions/pi-tui/index.ts
 pi install npm:@runecraft/pi-tui
 ```
 
-The package reads `~/.pi/agent/pi-tui.json`. Configure footer segments under `footer.segments` and their `left`, `center`, or `right` placement under `footer.zones`; supported segment keys include `cwd`, `timer`, `gitBranch`, `gitStatus`, `gitCommit`, `runtime`, `contextBar`, `model`, `thinking`, `tokens`, `cost`, and `extStatus`. Run `/pi-tui reload` after editing the file.
+The package reads `~/.pi/agent/pi-tui.json`. Configure footer segments under `footer.segments` and their `left`, `center`, or `right` placement under `footer.zones`; supported segment keys include `cwd`, `timer`, `gitBranch`, `gitStatus`, `gitCommit`, `runtime`, `contextBar`, `model`, `thinking`, `tokens`, `cost`, `extStatus`, and `connectionStatus`. Run `/pi-tui reload` after editing the file.
 
 ## Footer delivery investigation
 
