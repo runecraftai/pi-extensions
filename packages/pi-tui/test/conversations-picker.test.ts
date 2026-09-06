@@ -6,7 +6,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { relativeTime, formatSize } from "../extensions/pi-tui/pickers/conversations.ts";
+import { relativeTime } from "../extensions/pi-tui/pickers/conversations.ts";
 
 /* ── Tests ── */
 
@@ -34,29 +34,6 @@ describe("Conversations Picker", () => {
       const now = Date.now();
       assert.equal(relativeTime(new Date(now - 86400000)), "1d ago");
       assert.equal(relativeTime(new Date(now - 86400000 * 7)), "7d ago");
-    });
-  });
-
-  describe("formatSize", () => {
-    it("formats bytes", () => {
-      assert.equal(formatSize(0), "0B");
-      assert.equal(formatSize(512), "512B");
-      assert.equal(formatSize(1023), "1023B");
-    });
-
-    it("formats kilobytes", () => {
-      assert.equal(formatSize(1024), "1.0KB");
-      assert.equal(formatSize(5120), "5.0KB");
-      assert.equal(formatSize(1048575), "1024.0KB");
-    });
-
-    it("formats megabytes", () => {
-      assert.equal(formatSize(1048576), "1.0MB");
-      assert.equal(formatSize(5242880), "5.0MB");
-    });
-
-    it("returns empty for undefined", () => {
-      assert.equal(formatSize(undefined), "");
     });
   });
 

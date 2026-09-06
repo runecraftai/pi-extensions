@@ -30,8 +30,6 @@ export interface ConversationEntry {
   messageCount: number;
   firstMessage: string;
   isCurrentSession: boolean;
-  /** Approximate file size in bytes */
-  sizeBytes?: number;
 }
 
 /* ── Copy ── */
@@ -58,13 +56,6 @@ export function relativeTime(date: Date): string {
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
-}
-
-export function formatSize(bytes?: number): string {
-  if (bytes == null) return "";
-  if (bytes < 1024) return `${bytes}B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
 /** Extract model from session info if available in name or metadata. */
