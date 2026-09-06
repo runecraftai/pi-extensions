@@ -11,8 +11,11 @@ import type { SegmentIcons } from "./icons.ts";
 
 /* ── Types ── */
 
+export type HeaderMode = "auto" | "welcome" | "compact";
+
 export interface HeaderConfig {
   enabled: boolean;
+  mode: HeaderMode;
   animateLogo: boolean;
   logoColor: string;
   logoSpeed: number;
@@ -75,11 +78,24 @@ export interface FooterConfig {
   extStatus: { icon?: string };
 }
 
+export type DiffMode = "auto" | "split" | "unified";
+
+export interface RenderersConfig {
+  enabled: Record<string, boolean>;
+  defaultExpanded: Record<string, boolean>;
+  diff: { prefer: DiffMode; highlight: boolean; showLineNumbers: boolean; minSplitWidth: number };
+}
+
 export type CursorStyle = "block" | "bar" | "underline";
 
 export interface EditorConfig {
   cursorStyle: CursorStyle;
   roundedBorders: boolean;
+}
+
+export interface ShortcutEntry {
+  action: string;
+  key: string;
 }
 
 export interface PiTuiConfig {
@@ -89,12 +105,21 @@ export interface PiTuiConfig {
   editor: EditorConfig;
   icons: { mode: string; custom: Record<string, string> };
   colors: { overrides: Record<string, string> };
+  renderers: RenderersConfig;
+  shortcuts: ShortcutEntry[];
 }
 
 /* ── Defaults ── */
 
+const DEFAULT_RENDERERS: RenderersConfig = {
+  enabled: { read: true, search: true, listing: true, command: true, diff: true, image: false },
+  defaultExpanded: { read: false, search: false, listing: false, command: false, diff: true, error: true },
+  diff: { prefer: "auto", highlight: true, showLineNumbers: true, minSplitWidth: 140 },
+};
+
 export const DEFAULT_HEADER: HeaderConfig = {
   enabled: true,
+  mode: "auto",
   animateLogo: true,
   logoColor: "c",
   logoSpeed: 50,
@@ -164,6 +189,8 @@ export const DEFAULT_CONFIG: PiTuiConfig = {
   editor: structuredClone(DEFAULT_EDITOR),
   icons: { mode: "auto", custom: {} },
   colors: { overrides: {} },
+  renderers: structuredClone(DEFAULT_RENDERERS),
+  shortcuts: [],
 };
 
 /* ── Config path ── */

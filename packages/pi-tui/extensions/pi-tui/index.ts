@@ -15,7 +15,7 @@ import { installHeader } from "./header/index.ts";
 import { installFooter } from "./footer/index.ts";
 import { emptyGitStatus, readGitStatus, type GitStatus } from "./footer/git.ts";
 import { installEditor } from "./editor/index.ts";
-import { registerSettingsCommand } from "./settings/settings-command.ts";
+import { registerControlCenter } from "./control-center/center.ts";
 
 export default function (pi: ExtensionAPI) {
   let config: PiTuiConfig = loadConfig();
@@ -100,7 +100,7 @@ export default function (pi: ExtensionAPI) {
     uninstallEditor();
   };
 
-  registerSettingsCommand(pi, {
+  registerControlCenter(pi, {
     getConfig,
     onConfigChanged: (newConfig: PiTuiConfig) => {
       config = newConfig;
@@ -109,6 +109,9 @@ export default function (pi: ExtensionAPI) {
         uninstallAll();
         applyAll(activeContext, true);
       }
+    },
+    refreshGitStatus: () => {
+      if (activeContext) void refreshGitStatus(activeContext);
     },
   });
 

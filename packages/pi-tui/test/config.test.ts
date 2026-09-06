@@ -44,6 +44,7 @@ const DEFAULT_CONFIG = {
   enabled: true,
   header: {
     enabled: true,
+    mode: "auto",
     animateLogo: true,
     logoColor: "c",
     logoSpeed: 50,
@@ -79,7 +80,50 @@ const DEFAULT_CONFIG = {
   editor: { cursorStyle: "block", roundedBorders: true },
   icons: { mode: "auto", custom: {} },
   colors: { overrides: {} },
+  renderers: {
+    enabled: { read: true, search: true, listing: true, command: true, diff: true, image: false },
+    defaultExpanded: { read: false, search: false, listing: false, command: false, diff: true, error: true },
+    diff: { prefer: "auto", highlight: true, showLineNumbers: true, minSplitWidth: 140 },
+  },
+  shortcuts: [],
 };
+
+describe("Config v0.4.0 fields", () => {
+  it("has renderers config with defaults", () => {
+    const r = DEFAULT_CONFIG.renderers;
+    assert.ok(r.enabled);
+    assert.equal(r.enabled.read, true);
+    assert.equal(r.enabled.image, false);
+    assert.ok(r.diff);
+    assert.equal(r.diff.prefer, "auto");
+    assert.equal(r.diff.highlight, true);
+  });
+
+  it("has shortcuts defaulting to empty array", () => {
+    assert.ok(Array.isArray(DEFAULT_CONFIG.shortcuts));
+    assert.equal(DEFAULT_CONFIG.shortcuts.length, 0);
+  });
+
+  it("has header.mode defaulting to auto", () => {
+    assert.equal((DEFAULT_CONFIG as any).header.mode, "auto");
+  });
+
+  it("v0.3.x config without renderers/shortcuts gets defaults via deep merge", () => {
+    const oldConfig = {
+      enabled: true,
+      header: { enabled: true },
+      footer: { segments: { cwd: true } },
+      editor: { cursorStyle: "block" },
+      icons: { mode: "auto" },
+      colors: { overrides: {} },
+    };
+    const result = deepMerge(structuredClone(DEFAULT_CONFIG), oldConfig);
+    assert.ok(result.renderers);
+    assert.ok(Array.isArray(result.shortcuts));
+    assert.equal(result.shortcuts.length, 0);
+  });
+});
+
 
 describe("Config", () => {
   describe("deepMerge", () => {
