@@ -334,30 +334,29 @@ export function registerSettingsCommand(
     onOverlayClosed?: () => void;
   },
 ): void {
+  // Main /pi-tui command — opens Control Center
   pi.registerCommand("pi-tui", {
-    description: "Open the pi-tui settings UI, or use /pi-tui reload",
+    description: "Open the pi-tui Control Center",
     handler: async (args, ctx: ExtensionContext) => {
       const subcommand = args?.trim() ?? "";
 
+      // Legacy subcommands routed to standalone commands
       if (subcommand === "reload") {
         hooks.onConfigChanged(loadConfig());
         ctx.ui.notify("TUI reloaded from config", "info");
         return;
       }
-
       if (subcommand === "conversations" || subcommand === "conv") {
         await openConversationsPicker(ctx);
         return;
       }
-
       if (subcommand === "tasks") {
         const { openTasksOverlay } = await import("../control-center/tasks.ts");
         await openTasksOverlay(ctx);
         return;
       }
-
       if (subcommand !== "") {
-        ctx.ui.notify(`Unknown /pi-tui subcommand: "${subcommand}". Available: reload, conversations, tasks`, "warning");
+        ctx.ui.notify(`Unknown /pi-tui subcommand: "${subcommand}". Try /pi-tui-tasks, /pi-tui-conversations, /pi-tui-reload`, "warning");
         return;
       }
 
@@ -381,6 +380,30 @@ export function registerSettingsCommand(
       }, { overlay: true });
 
       hooks.onOverlayClosed?.();
+    },
+  });
+
+  // Standalone subcommands for slash autocomplete
+  pi.registerCommand("pi-tui-reload", {
+    description: "Reload pi-tui config from disk",
+    handler: async (_args, ctx: ExtensionContext) => {
+      hooks.onConfigChanged(loadConfig());
+      ctx.ui.notify("TUI reloaded from config", "info");
+    },
+  });
+
+  pi.registerCommand("pi-tui-conversations", {
+    description: "Open the conversations picker",
+    handler: async (_args, ctx: ExtensionContext) => {
+      await openConversationsPicker(ctx);
+    },
+  });
+
+  pi.registerCommand("pi-tui-tasks", {
+    description: "Open the tasks dashboard",
+    handler: async (_args, ctx: ExtensionContext) => {
+      const { openTasksOverlay } = await import("../control-center/tasks.ts");
+      await openTasksOverlay(ctx);
     },
   });
 }

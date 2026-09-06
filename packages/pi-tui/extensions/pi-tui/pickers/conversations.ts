@@ -91,7 +91,7 @@ export async function loadConversations(ctx: ExtensionContext): Promise<Conversa
     const sessionManager = ctx.sessionManager;
     const sessionDir = sessionManager.getSessionDir();
     const { SessionManager } = await import("@earendil-works/pi-coding-agent");
-    const sessions = await SessionManager.listAll(sessionDir);
+    const sessions = await SessionManager.list(cwd, sessionDir);
     return sessions.map((info) => ({
       id: info.id,
       name: info.name || info.firstMessage?.slice(0, 50) || COPY.empty,

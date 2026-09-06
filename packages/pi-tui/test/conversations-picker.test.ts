@@ -1,7 +1,7 @@
 /**
  * Tests for pi-tui conversations picker (pickers/conversations.ts).
  *
- * Tests the pure helper functions: relativeTime, formatSize.
+ * Tests the pure helper functions by importing from source.
  */
 
 import { describe, it } from "node:test";
@@ -82,23 +82,6 @@ describe("Conversations Picker", () => {
       assert.equal(typeof entry.messageCount, "number");
       assert.equal(typeof entry.firstMessage, "string");
       assert.equal(typeof entry.isCurrentSession, "boolean");
-    });
-  });
-
-  describe("Current session detection", () => {
-    it("matches by session ID", () => {
-      const original = process.env.PI_SESSION_ID;
-      process.env.PI_SESSION_ID = "test-session-123";
-      try {
-        const sessionId = process.env.PI_SESSION_ID;
-        assert.equal(sessionId, "test-session-123");
-      } finally {
-        if (original !== undefined) {
-          process.env.PI_SESSION_ID = original;
-        } else {
-          delete process.env.PI_SESSION_ID;
-        }
-      }
     });
   });
 });
