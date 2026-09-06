@@ -1,33 +1,12 @@
 /**
  * Tests for pi-tui conversations picker (pickers/conversations.ts).
  *
- * Tests the pure helper functions: relativeTime, formatSize, extractModel.
+ * Tests the pure helper functions: relativeTime, formatSize.
  */
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-
-/* ── Pure helpers (extracted from conversations.ts) ── */
-
-function relativeTime(date: Date): string {
-  const now = Date.now();
-  const diff = now - date.getTime();
-  const seconds = Math.floor(diff / 1000);
-  if (seconds < 60) return `${seconds}s ago`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
-
-function formatSize(bytes?: number): string {
-  if (bytes == null) return "";
-  if (bytes < 1024) return `${bytes}B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
-}
+import { relativeTime, formatSize } from "../extensions/pi-tui/pickers/conversations.ts";
 
 /* ── Tests ── */
 

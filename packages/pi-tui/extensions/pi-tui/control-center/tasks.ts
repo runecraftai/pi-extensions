@@ -39,16 +39,6 @@ const COPY = {
   },
 } as const;
 
-/* ── ASCII fallback icons ── */
-
-const ASCII_ICONS: Record<TaskInfo["displayState"], string> = {
-  running: ">",
-  parked: "||",
-  done: "ok",
-  failed: "!!",
-  unknown: "?",
-};
-
 /* ── Tasks UI component ── */
 
 class TasksUi {

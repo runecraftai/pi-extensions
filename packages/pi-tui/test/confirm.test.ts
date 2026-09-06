@@ -7,37 +7,36 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { Key, matchesKey } from "@earendil-works/pi-tui";
+import {
+  RISK_ICONS,
+  RISK_LABELS,
+  type ConfirmOptions,
+} from "../extensions/pi-tui/ui/confirm.ts";
 
-/* ── Risk-level constants (extracted from confirm.ts for testing) ── */
+/* ── Input simulation using real matchesKey/Key API ── */
 
-const RISK_ICONS: Record<string, string> = {
-  low: "?",
-  medium: "!",
-  high: "\u{F071}",
-};
+function createSimulator() {
+  let closed = false;
+  let confirmed = false;
 
-const RISK_LABELS: Record<string, string> = {
-  low: "Low risk",
-  medium: "Medium risk",
-  high: "HIGH RISK",
-};
-
-/* ── Types (mirrored from confirm.ts) ── */
-
-type RiskLevel = "low" | "medium" | "high";
-
-interface ConfirmOptions {
-  title: string;
-  message: string;
-  risk?: RiskLevel;
-  confirmLabel?: string;
-  cancelLabel?: string;
-}
-
-/* ── Input simulation ── */
-
-function simulateInput(ui: { handleInput: (data: string) => void; isClosed: () => boolean; isConfirmed: () => boolean }, key: string) {
-  ui.handleInput(key);
+  return {
+    handleInput: (data: string) => {
+      if (closed) return;
+      if (matchesKey(data, Key.escape) || data === "n" || data === "N") {
+        confirmed = false;
+        closed = true;
+        return;
+      }
+      if (data === "y" || data === "Y" || matchesKey(data, Key.enter)) {
+        confirmed = true;
+        closed = true;
+        return;
+      }
+    },
+    isClosed: () => closed,
+    isConfirmed: () => confirmed,
+  };
 }
 
 /* ── Tests ── */
@@ -72,9 +71,9 @@ describe("Confirm Dialog", () => {
       };
       assert.equal(options.title, "Test");
       assert.equal(options.message, "Are you sure?");
-      assert.equal(options.risk, undefined); // defaults to "medium"
-      assert.equal(options.confirmLabel, undefined); // defaults to "Yes"
-      assert.equal(options.cancelLabel, undefined); // defaults to "No"
+      assert.equal(options.risk, undefined);
+      assert.equal(options.confirmLabel, undefined);
+      assert.equal(options.cancelLabel, undefined);
     });
 
     it("accepts all optional fields", () => {
@@ -92,30 +91,6 @@ describe("Confirm Dialog", () => {
   });
 
   describe("Input handling logic", () => {
-    // These test the input routing logic that would be used by the ConfirmUi class
-    function createSimulator() {
-      let closed = false;
-      let confirmed = false;
-
-      return {
-        handleInput: (data: string) => {
-          if (closed) return;
-          if (data === "escape" || data === "n" || data === "N") {
-            confirmed = false;
-            closed = true;
-            return;
-          }
-          if (data === "y" || data === "Y" || data === "enter") {
-            confirmed = true;
-            closed = true;
-            return;
-          }
-        },
-        isClosed: () => closed,
-        isConfirmed: () => confirmed,
-      };
-    }
-
     it("confirms on 'y'", () => {
       const sim = createSimulator();
       sim.handleInput("y");
@@ -130,9 +105,9 @@ describe("Confirm Dialog", () => {
       assert.equal(sim.isConfirmed(), true);
     });
 
-    it("confirms on Enter", () => {
+    it("confirms on raw Enter key", () => {
       const sim = createSimulator();
-      sim.handleInput("enter");
+      sim.handleInput("\r");
       assert.equal(sim.isClosed(), true);
       assert.equal(sim.isConfirmed(), true);
     });
@@ -151,9 +126,9 @@ describe("Confirm Dialog", () => {
       assert.equal(sim.isConfirmed(), false);
     });
 
-    it("cancels on Escape", () => {
+    it("cancels on raw Escape key", () => {
       const sim = createSimulator();
-      sim.handleInput("escape");
+      sim.handleInput("\x1b");
       assert.equal(sim.isClosed(), true);
       assert.equal(sim.isConfirmed(), false);
     });
@@ -173,7 +148,7 @@ describe("Confirm Dialog", () => {
       sim.handleInput("y");
       assert.equal(sim.isClosed(), true);
       sim.handleInput("n");
-      assert.equal(sim.isConfirmed(), true); // still confirmed from first input
+      assert.equal(sim.isConfirmed(), true);
     });
   });
 });

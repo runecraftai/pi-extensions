@@ -4,17 +4,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-
-/* ── formatElapsed (extracted from segments.ts for testing) ── */
-
-function formatElapsed(ms: number): string {
-  const seconds = Math.floor(ms / 1000);
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m${(seconds % 60).toString().padStart(2, "0")}s`;
-  const hours = Math.floor(minutes / 60);
-  return `${hours}h${(minutes % 60).toString().padStart(2, "0")}m`;
-}
+import { formatElapsed } from "../extensions/pi-tui/footer/segments.ts";
 
 /* ── Connection status logic ── */
 

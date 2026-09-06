@@ -16,7 +16,6 @@ import {
   type TUI,
   Text,
   truncateToWidth,
-  visibleWidth,
 } from "@earendil-works/pi-tui";
 
 /* ── Types ── */
@@ -48,7 +47,7 @@ const COPY = {
 
 /* ── Helpers ── */
 
-function relativeTime(date: Date): string {
+export function relativeTime(date: Date): string {
   const now = Date.now();
   const diff = now - date.getTime();
   const seconds = Math.floor(diff / 1000);
@@ -61,7 +60,7 @@ function relativeTime(date: Date): string {
   return `${days}d ago`;
 }
 
-function formatSize(bytes?: number): string {
+export function formatSize(bytes?: number): string {
   if (bytes == null) return "";
   if (bytes < 1024) return `${bytes}B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;

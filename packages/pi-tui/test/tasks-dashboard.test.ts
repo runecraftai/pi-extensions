@@ -2,72 +2,19 @@
  * Tests for pi-tui tasks dashboard (control-center/state-reader.ts).
  *
  * Tests the pure helper functions: formatElapsed, getStateIcon,
- * parseMetaFile, parseStatusFile, deriveState.
+ * parseMetaFile, parseStatusFile, deriveState, shortProject.
  */
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-
-/* ── Pure helpers (extracted from state-reader.ts) ── */
-
-function formatElapsed(ms: number): string {
-  const seconds = Math.floor(ms / 1000);
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  return `${hours}h${(minutes % 60).toString().padStart(2, "0")}m`;
-}
-
-type TaskState = "running" | "parked" | "done" | "failed" | "unknown";
-
-function getStateIcon(state: TaskState): string {
-  switch (state) {
-    case "running": return "\u{F04B}";
-    case "parked": return "\u{F04C}";
-    case "done": return "\u{F00C}";
-    case "failed": return "\u{F00D}";
-    case "unknown": return "?";
-  }
-}
-
-function parseMetaFile(content: string): Record<string, string> {
-  const result: Record<string, string> = {};
-  for (const line of content.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const eqIdx = trimmed.indexOf("=");
-    if (eqIdx === -1) continue;
-    const key = trimmed.slice(0, eqIdx).trim();
-    const value = trimmed.slice(eqIdx + 1).trim();
-    result[key] = value;
-  }
-  return result;
-}
-
-function parseStatusFile(content: string): string[] {
-  return content.split("\n").filter((line) => line.trim().length > 0);
-}
-
-function deriveState(statusLines: string[]): TaskState {
-  if (statusLines.length === 0) return "unknown";
-  const lastLine = statusLines[statusLines.length - 1]!.trim();
-  if (lastLine.startsWith("done:")) return "done";
-  if (lastLine.startsWith("failed:")) return "failed";
-  if (lastLine.startsWith("blocked:")) return "parked";
-  if (lastLine.startsWith("paused:")) return "parked";
-  if (lastLine.startsWith("needs-decision:")) return "parked";
-  if (lastLine.startsWith("working:")) return "running";
-  if (lastLine.startsWith("resolved:")) return "running";
-  return "unknown";
-}
-
-function shortProject(projectPath?: string): string {
-  if (!projectPath) return "—";
-  const parts = projectPath.split("/");
-  const meaningful = parts.filter((p) => p.length > 0 && p !== "Projects" && p !== "home" && p !== "rehem");
-  return meaningful.slice(-2).join("/") || "—";
-}
+import {
+  formatElapsed,
+  getStateIcon,
+  parseMetaFile,
+  parseStatusFile,
+  deriveState,
+  shortProject,
+} from "../extensions/pi-tui/control-center/state-reader.ts";
 
 /* ── Tests ── */
 

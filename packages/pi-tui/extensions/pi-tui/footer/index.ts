@@ -127,7 +127,6 @@ function layoutZones(texts: Record<FooterZone, string>, width: number): string {
 class PiTuiFooter implements Component {
   private readonly startTime: number;
   private lastValidReadMs: number;
-  private readonly staleThresholdMs: number;
   private readonly ctx: ExtensionContext;
   private readonly footerData: ReadonlyFooterDataProvider;
   private readonly theme: Theme;
@@ -151,7 +150,6 @@ class PiTuiFooter implements Component {
     this.getGitStatus = getGitStatus;
     this.startTime = Date.now();
     this.lastValidReadMs = Date.now();
-    this.staleThresholdMs = getConfig().footer.connectionStatus.stalenessThresholdMs;
     this.timerHandle = setInterval(requestRender, 1000);
     this.timerHandle.unref?.();
     this.unsubscribeBranchChange = footerData.onBranchChange(() => requestRender());

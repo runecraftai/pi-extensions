@@ -33,13 +33,13 @@ export interface ConfirmOptions {
 
 /* ── Risk-level styling ── */
 
-const RISK_ICONS: Record<RiskLevel, string> = {
+export const RISK_ICONS: Record<RiskLevel, string> = {
   low: "?",
   medium: "!",
   high: "\u{F071}", // ⚠ nerd icon (fallback-safe when rendered as ASCII)
 };
 
-const RISK_LABELS: Record<RiskLevel, string> = {
+export const RISK_LABELS: Record<RiskLevel, string> = {
   low: "Low risk",
   medium: "Medium risk",
   high: "HIGH RISK",

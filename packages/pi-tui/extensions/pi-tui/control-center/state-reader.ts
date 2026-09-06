@@ -81,7 +81,7 @@ function getStateDir(): string {
 
 /* ── Parsing ── */
 
-function parseMetaFile(content: string): Record<string, string> {
+export function parseMetaFile(content: string): Record<string, string> {
   const result: Record<string, string> = {};
   for (const line of content.split("\n")) {
     const trimmed = line.trim();
@@ -95,11 +95,11 @@ function parseMetaFile(content: string): Record<string, string> {
   return result;
 }
 
-function parseStatusFile(content: string): string[] {
+export function parseStatusFile(content: string): string[] {
   return content.split("\n").filter((line) => line.trim().length > 0);
 }
 
-function deriveState(statusLines: string[]): TaskInfo["displayState"] {
+export function deriveState(statusLines: string[]): TaskInfo["displayState"] {
   if (statusLines.length === 0) return "unknown";
   const lastLine = statusLines[statusLines.length - 1]!.trim();
   if (lastLine.startsWith("done:")) return "done";
@@ -125,7 +125,7 @@ function extractStateFromStatus(latestStatus: string): string | undefined {
   return undefined;
 }
 
-function shortProject(projectPath?: string): string {
+export function shortProject(projectPath?: string): string {
   if (!projectPath) return "—";
   const parts = projectPath.split("/");
   // Get last 2 meaningful parts
