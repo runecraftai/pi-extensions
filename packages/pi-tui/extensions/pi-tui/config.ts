@@ -77,6 +77,39 @@ export interface FooterConfig {
   extStatus: { icon?: string };
 }
 
+export type DiffViewMode = "split" | "unified" | "auto";
+
+export interface DiffRendererConfig {
+  mode: DiffViewMode;
+  minSplitWidth: number;
+  highlight: boolean;
+  showLineNumbers: boolean;
+  theme: string;
+}
+
+export interface RendererToggles {
+  diff: boolean;
+  read: boolean;
+  search: boolean;
+  listing: boolean;
+  command: boolean;
+}
+
+export interface RendererExpandedToggles {
+  diff: boolean;
+  read: boolean;
+  search: boolean;
+  listing: boolean;
+  command: boolean;
+  error: boolean;
+}
+
+export interface RenderersConfig {
+  enabled: RendererToggles;
+  defaultExpanded: RendererExpandedToggles;
+  diff: DiffRendererConfig;
+}
+
 export interface EditorConfig {
   cursorStyle: "block" | "bar" | "underline";
   roundedBorders: boolean;
@@ -87,6 +120,7 @@ export interface PiTuiConfig {
   header: HeaderConfig;
   footer: FooterConfig;
   editor: EditorConfig;
+  renderers: RenderersConfig;
   icons: { mode: string; custom: Record<string, string> };
   colors: { overrides: Record<string, string> };
 }
@@ -160,11 +194,39 @@ const DEFAULT_EDITOR: EditorConfig = {
   roundedBorders: true,
 };
 
+const DEFAULT_DIFF: DiffRendererConfig = {
+  mode: "auto",
+  minSplitWidth: 140,
+  highlight: true,
+  showLineNumbers: true,
+  theme: "github-dark",
+};
+
+const DEFAULT_RENDERERS: RenderersConfig = {
+  enabled: {
+    diff: true,
+    read: true,
+    search: true,
+    listing: true,
+    command: true,
+  },
+  defaultExpanded: {
+    diff: true,
+    read: false,
+    search: false,
+    listing: false,
+    command: false,
+    error: true,
+  },
+  diff: structuredClone(DEFAULT_DIFF),
+};
+
 export const DEFAULT_CONFIG: PiTuiConfig = {
   enabled: true,
   header: structuredClone(DEFAULT_HEADER),
   footer: structuredClone(DEFAULT_FOOTER),
   editor: structuredClone(DEFAULT_EDITOR),
+  renderers: structuredClone(DEFAULT_RENDERERS),
   icons: { mode: "auto", custom: {} },
   colors: { overrides: {} },
 };
