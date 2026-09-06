@@ -16,6 +16,7 @@ import { installFooter } from "./footer/index.ts";
 import { emptyGitStatus, readGitStatus, type GitStatus } from "./footer/git.ts";
 import { installEditor } from "./editor/index.ts";
 import { registerSettingsCommand } from "./settings/settings-command.ts";
+import { createToolResultHandler } from "./renderers/index.ts";
 
 export default function (pi: ExtensionAPI) {
   let config: PiTuiConfig = loadConfig();
@@ -122,8 +123,12 @@ export default function (pi: ExtensionAPI) {
     }, 0);
   });
 
-  pi.on("tool_result", (_event, ctx) => {
+  // Tool result renderer middleware
+  const handleToolResult = createToolResultHandler(config.renderers);
+
+  pi.on("tool_result", (event, ctx) => {
     void refreshGitStatus(ctx);
+    return handleToolResult(event, ctx);
   });
 
   pi.on("user_bash", (_event, ctx) => {

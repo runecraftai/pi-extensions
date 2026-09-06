@@ -25,6 +25,14 @@ export interface SegmentIcons {
   cacheHit: string;
   cost: string;
   extensionStatus: string;
+  /* renderers */
+  readFile: string;
+  searchResult: string;
+  listing: string;
+  command: string;
+  diff: string;
+  expanded: string;
+  collapsed: string;
 }
 
 export const DEFAULT_ICONS: SegmentIcons = {
@@ -45,6 +53,13 @@ export const DEFAULT_ICONS: SegmentIcons = {
   cacheHit: "\u{F1C0}",
   cost: "\u{F155}",
   extensionStatus: "\u{EB25}",
+  readFile: "\u{F15C}",
+  searchResult: "\u{F002}",
+  listing: "\u{F07B}",
+  command: "\u{F489}",
+  diff: "\u{F440}",
+  expanded: "\u{F103}",
+  collapsed: "\u{F104}",
 };
 
 /** Resolve a configured icon, preserving an explicit empty-string disable. */

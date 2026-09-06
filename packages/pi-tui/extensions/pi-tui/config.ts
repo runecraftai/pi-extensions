@@ -82,11 +82,20 @@ export interface EditorConfig {
   roundedBorders: boolean;
 }
 
+export interface RenderersConfig {
+  enabled: { read: boolean; search: boolean; listing: boolean; command: boolean; diff: boolean; image: boolean };
+  defaultExpanded: { read: boolean; search: boolean; listing: boolean; command: boolean; diff: boolean; error: boolean };
+  diff: { prefer: "auto" | "split" | "unified"; highlight: boolean; showLineNumbers: boolean; minSplitWidth: number };
+  image: { maxWidth: number; maxHeight: number; fallback: "metadata" | "hidden" };
+  truncateAt: number;
+}
+
 export interface PiTuiConfig {
   enabled: boolean;
   header: HeaderConfig;
   footer: FooterConfig;
   editor: EditorConfig;
+  renderers: RenderersConfig;
   icons: { mode: string; custom: Record<string, string> };
   colors: { overrides: Record<string, string> };
 }
@@ -157,11 +166,20 @@ const DEFAULT_EDITOR: EditorConfig = {
   roundedBorders: true,
 };
 
+const DEFAULT_RENDERERS: RenderersConfig = {
+  enabled: { read: true, search: true, listing: true, command: true, diff: true, image: false },
+  defaultExpanded: { read: false, search: false, listing: false, command: false, diff: true, error: true },
+  diff: { prefer: "auto", highlight: true, showLineNumbers: true, minSplitWidth: 140 },
+  image: { maxWidth: 80, maxHeight: 24, fallback: "metadata" },
+  truncateAt: 2000,
+};
+
 export const DEFAULT_CONFIG: PiTuiConfig = {
   enabled: true,
   header: structuredClone(DEFAULT_HEADER),
   footer: structuredClone(DEFAULT_FOOTER),
   editor: structuredClone(DEFAULT_EDITOR),
+  renderers: structuredClone(DEFAULT_RENDERERS),
   icons: { mode: "auto", custom: {} },
   colors: { overrides: {} },
 };
