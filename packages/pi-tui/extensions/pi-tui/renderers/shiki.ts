@@ -20,15 +20,20 @@ const IMPORT_TIMEOUT_MS = 800;
 
 /* ── Lazy import ── */
 
-let shikiModule: typeof import("shiki") | undefined;
-let shikiLoadPromise: Promise<typeof import("shiki")> | null = null;
+type ShikiModule = Record<string, unknown>;
 
-async function loadShiki(signal?: AbortSignal): Promise<typeof import("shiki") | undefined> {
+type DynamicImport = (specifier: string) => Promise<ShikiModule>;
+const dynamicImport = new Function("specifier", "return import(specifier)") as DynamicImport;
+
+let shikiModule: ShikiModule | undefined;
+let shikiLoadPromise: Promise<ShikiModule | undefined> | null = null;
+
+async function loadShiki(signal?: AbortSignal): Promise<ShikiModule | undefined> {
   if (shikiModule) return shikiModule;
   if (signal?.aborted) return undefined;
 
   if (!shikiLoadPromise) {
-    shikiLoadPromise = import("shiki").then((mod) => {
+    shikiLoadPromise = dynamicImport("shiki").then((mod) => {
       shikiModule = mod;
       return mod;
     }).catch(() => {
@@ -80,7 +85,7 @@ async function getHighlighter(
   }
 }
 
-async function loadWithTimeout(signal?: AbortSignal): Promise<typeof import("shiki") | undefined> {
+async function loadWithTimeout(signal?: AbortSignal): Promise<ShikiModule | undefined> {
   return new Promise((resolve) => {
     const timer = setTimeout(() => resolve(undefined), IMPORT_TIMEOUT_MS);
 

@@ -13,6 +13,7 @@ import type { SegmentIcons } from "./icons.ts";
 
 export interface HeaderConfig {
   enabled: boolean;
+  mode: "auto" | "welcome" | "compact";
   animateLogo: boolean;
   logoColor: string;
   logoSpeed: number;
@@ -129,6 +130,7 @@ export interface PiTuiConfig {
 
 export const DEFAULT_HEADER: HeaderConfig = {
   enabled: true,
+  mode: "auto",
   animateLogo: true,
   logoColor: "c",
   logoSpeed: 50,

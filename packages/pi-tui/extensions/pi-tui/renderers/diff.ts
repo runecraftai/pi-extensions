@@ -94,7 +94,6 @@ function parseHunkHeader(line: string): Omit<DiffHunk, "lines"> | undefined {
     newStart: parseInt(m[3], 10),
     newCount: m[4] ? parseInt(m[4], 10) : 1,
     context: m[5]?.trim() ?? "",
-    lines: [],
   };
 }
 
@@ -186,7 +185,7 @@ export function parseDiff(text: string): DiffParseResult {
     // Hunk header
     const hunk = parseHunkHeader(trimmed);
     if (hunk) {
-      currentHunk = hunk;
+      currentHunk = { ...hunk, lines: [] };
       currentFile.hunks.push(currentHunk);
       continue;
     }

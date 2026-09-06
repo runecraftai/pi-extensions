@@ -5,11 +5,16 @@
  * Unknown tools return undefined (chain continues, Pi native renderer takes over).
  */
 
-import type { ExtensionAPI, ExtensionContext, ToolResultEvent, ToolResultEventResult } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext, ToolResultEvent } from "@earendil-works/pi-coding-agent";
 import type { Theme } from "@earendil-works/pi-coding-agent";
 import type { PiTuiConfig } from "../config.ts";
 import { looksLikeDiff, parseDiff } from "./diff.ts";
 import { renderDiff, type DiffViewConfig, DEFAULT_DIFF_VIEW_CONFIG } from "./diff-view.ts";
+
+type ToolResultEventResult = {
+  content?: ToolResultEvent["content"];
+  details?: unknown;
+};
 
 /* ── Renderer types ── */
 

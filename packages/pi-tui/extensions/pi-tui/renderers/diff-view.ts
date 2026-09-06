@@ -63,10 +63,10 @@ function resolveDiffColors(theme: Theme): DiffColors {
     try { return fn(""); } catch { return fallback; }
   };
   return {
-    additionBg: tryFg((s) => theme.bg("green", s), ""),
-    additionFg: tryFg((s) => theme.fg("green", s), "\x1b[32m"),
-    deletionBg: tryFg((s) => theme.bg("red", s), ""),
-    deletionFg: tryFg((s) => theme.fg("red", s), "\x1b[31m"),
+    additionBg: "",
+    additionFg: "\x1b[32m",
+    deletionBg: "",
+    deletionFg: "\x1b[31m",
     lineNumber: tryFg((s) => theme.fg("dim", s), "\x1b[90m"),
     header: tryFg((s) => theme.fg("accent", s), "\x1b[36m"),
     hunkHeader: tryFg((s) => theme.fg("dim", s), "\x1b[90m"),
