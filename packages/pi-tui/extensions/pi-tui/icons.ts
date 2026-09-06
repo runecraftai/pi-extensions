@@ -25,6 +25,7 @@ export interface SegmentIcons {
   cacheHit: string;
   cost: string;
   extensionStatus: string;
+  connectionStatus: string;
 }
 
 export const DEFAULT_ICONS: SegmentIcons = {
@@ -45,6 +46,7 @@ export const DEFAULT_ICONS: SegmentIcons = {
   cacheHit: "\u{F1C0}",
   cost: "\u{F155}",
   extensionStatus: "\u{EB25}",
+  connectionStatus: "\u{F1EB}", // wifi icon
 };
 
 /** Resolve a configured icon, preserving an explicit empty-string disable. */

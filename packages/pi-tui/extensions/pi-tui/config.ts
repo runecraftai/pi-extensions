@@ -33,7 +33,7 @@ export interface HeaderConfig {
 export type FooterSegmentKey =
   | "cwd" | "timer" | "gitBranch" | "gitStatus" | "gitCommit"
   | "contextBar" | "model" | "thinking"
-  | "tokens" | "cost" | "extStatus";
+  | "tokens" | "cost" | "extStatus" | "connectionStatus";
 
 export type FooterZone = "left" | "center" | "right";
 
@@ -51,6 +51,7 @@ export interface FooterSegments {
   tokens: boolean;
   cost: boolean;
   extStatus: boolean;
+  connectionStatus: boolean;
 }
 
 export interface FooterConfig {
@@ -69,6 +70,7 @@ export interface FooterConfig {
   };
   cost: { icon?: string };
   telemetry: { enabled: boolean; tps: boolean; ttft: boolean; stalls: boolean };
+  connectionStatus: { enabled: boolean; stalenessThresholdMs: number; icon?: string };
   timer: { icon?: string };
   model: { icon?: string };
   thinking: { icon?: string };
@@ -126,6 +128,7 @@ const DEFAULT_FOOTER: FooterConfig = {
     tokens: true,
     cost: true,
     extStatus: true,
+    connectionStatus: false,
   },
   zones: {
     // Layout D: LEFT = project identity, RIGHT = metrics
@@ -140,12 +143,14 @@ const DEFAULT_FOOTER: FooterConfig = {
     tokens: "right",
     cost: "right",
     extStatus: "right",
+    connectionStatus: "right",
   },
   git: { showBranch: true, showStatus: true, showCommit: true },
   context: { showBar: true, showCompact: false },
   tokens: { showInput: true, showOutput: true, showCache: true },
   cost: {},
   telemetry: { enabled: false, tps: true, ttft: true, stalls: true },
+  connectionStatus: { enabled: false, stalenessThresholdMs: 10_000 },
   timer: {},
   model: {},
   thinking: {},

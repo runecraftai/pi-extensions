@@ -21,6 +21,7 @@ export const FOOTER_SEPARATOR = " · ";
 export const FOOTER_PRIORITY: Record<FooterSegmentKey, number> = {
   cwd: 6, model: 9, tokens: 7, timer: 4, gitBranch: 10, gitStatus: 9,
   gitCommit: 8, contextBar: 8, thinking: 6, cost: 7, extStatus: 3,
+  connectionStatus: 5,
 };
 
 type FooterSegment = { key: FooterSegmentKey; text: string; priority: number };
@@ -125,6 +126,8 @@ function layoutZones(texts: Record<FooterZone, string>, width: number): string {
 
 class PiTuiFooter implements Component {
   private readonly startTime: number;
+  private lastValidReadMs: number;
+  private readonly staleThresholdMs: number;
   private readonly ctx: ExtensionContext;
   private readonly footerData: ReadonlyFooterDataProvider;
   private readonly theme: Theme;
@@ -147,9 +150,16 @@ class PiTuiFooter implements Component {
     this.getConfig = getConfig;
     this.getGitStatus = getGitStatus;
     this.startTime = Date.now();
+    this.lastValidReadMs = Date.now();
+    this.staleThresholdMs = getConfig().footer.connectionStatus.stalenessThresholdMs;
     this.timerHandle = setInterval(requestRender, 1000);
     this.timerHandle.unref?.();
     this.unsubscribeBranchChange = footerData.onBranchChange(() => requestRender());
+  }
+
+  /** Mark data as freshly read (called after git/session refresh). */
+  markDataFresh(): void {
+    this.lastValidReadMs = Date.now();
   }
 
   invalidate(): void {}
@@ -188,12 +198,15 @@ class PiTuiFooter implements Component {
       git: this.getGitStatus(),
       iconMode: config.icons.mode,
       iconOverrides,
+      connectionStatus: config.footer.connectionStatus.enabled
+        ? { lastValidReadMs: this.lastValidReadMs, staleThresholdMs: config.footer.connectionStatus.stalenessThresholdMs }
+        : undefined,
     };
     const enabled = config.footer.segments;
     // Keep the two lines independent: the context bar is a line-1-only segment
     // and must not affect selection of line-2 metrics.
     const line1Keys: FooterSegmentKey[] = ["cwd", "timer", "gitBranch", "gitStatus", "gitCommit"];
-    const line2Keys: FooterSegmentKey[] = ["model", "thinking", "tokens", "cost", "extStatus"];
+    const line2Keys: FooterSegmentKey[] = ["model", "thinking", "tokens", "cost", "extStatus", "connectionStatus"];
     const makeZoneTexts = (keys: FooterSegmentKey[], availableWidth: number): Record<FooterZone, string> => {
       const groups: Record<FooterZone, FooterSegment[]> = { left: [], center: [], right: [] };
       for (const key of keys) {
@@ -306,14 +319,24 @@ export function installFooter(
   getConfig: () => PiTuiConfig,
   getGitStatus: () => GitStatus | undefined = () => undefined,
   setRequestRender?: (requestRender: (() => void) | undefined) => void,
-): () => void {
+): { cleanup: () => void; markDataFresh: () => void } {
+  let footerInstance: PiTuiFooter | undefined;
+
   ctx.ui.setFooter((tui, theme, footerData) => {
     const requestRender = () => tui.requestRender();
     setRequestRender?.(requestRender);
-    return new PiTuiFooter(ctx, footerData, theme, getConfig, getGitStatus, requestRender);
+    footerInstance = new PiTuiFooter(ctx, footerData, theme, getConfig, getGitStatus, requestRender);
+    return footerInstance;
   });
-  return () => {
-    setRequestRender?.(undefined);
-    ctx.ui.setFooter(undefined);
+
+  return {
+    cleanup: () => {
+      setRequestRender?.(undefined);
+      ctx.ui.setFooter(undefined);
+      footerInstance = undefined;
+    },
+    markDataFresh: () => {
+      footerInstance?.markDataFresh();
+    },
   };
 }
