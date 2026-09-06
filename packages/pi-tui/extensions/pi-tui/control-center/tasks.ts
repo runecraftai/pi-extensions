@@ -15,7 +15,6 @@ import {
   type TUI,
   Text,
   truncateToWidth,
-  visibleWidth,
 } from "@earendil-works/pi-tui";
 import {
   type TaskInfo,

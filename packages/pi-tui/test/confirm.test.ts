@@ -1,42 +1,29 @@
 /**
  * Tests for pi-tui confirmation dialog (ui/confirm.ts).
  *
- * The confirm dialog uses ctx.ui.custom() which is runtime-dependent.
- * These tests validate the pure logic and risk-level styling.
+ * Instantiates the real ConfirmUi class with a minimal mock theme
+ * and exercises its handleInput/render methods directly.
  */
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { Key, matchesKey } from "@earendil-works/pi-tui";
 import {
+  ConfirmUi,
   RISK_ICONS,
   RISK_LABELS,
   type ConfirmOptions,
 } from "../extensions/pi-tui/ui/confirm.ts";
 
-/* ── Input simulation using real matchesKey/Key API ── */
+/* ── Mock theme ── */
 
-function createSimulator() {
-  let closed = false;
-  let confirmed = false;
+const mockTheme = {
+  fg: (_color: string, text: string) => text,
+  bold: (text: string) => text,
+  bg: (_color: string, text: string) => text,
+};
 
-  return {
-    handleInput: (data: string) => {
-      if (closed) return;
-      if (matchesKey(data, Key.escape) || data === "n" || data === "N") {
-        confirmed = false;
-        closed = true;
-        return;
-      }
-      if (data === "y" || data === "Y" || matchesKey(data, Key.enter)) {
-        confirmed = true;
-        closed = true;
-        return;
-      }
-    },
-    isClosed: () => closed,
-    isConfirmed: () => confirmed,
-  };
+function createUi(options: ConfirmOptions = { title: "Test", message: "Are you sure?" }) {
+  return new ConfirmUi(mockTheme, options);
 }
 
 /* ── Tests ── */
@@ -90,65 +77,90 @@ describe("Confirm Dialog", () => {
     });
   });
 
-  describe("Input handling logic", () => {
+  describe("Input handling via real ConfirmUi", () => {
+    it("starts open and unconfirmed", () => {
+      const ui = createUi();
+      assert.equal(ui.isClosed, false);
+      assert.equal(ui.isConfirmed, false);
+    });
+
     it("confirms on 'y'", () => {
-      const sim = createSimulator();
-      sim.handleInput("y");
-      assert.equal(sim.isClosed(), true);
-      assert.equal(sim.isConfirmed(), true);
+      const ui = createUi();
+      ui.handleInput("y");
+      assert.equal(ui.isClosed, true);
+      assert.equal(ui.isConfirmed, true);
     });
 
     it("confirms on 'Y'", () => {
-      const sim = createSimulator();
-      sim.handleInput("Y");
-      assert.equal(sim.isClosed(), true);
-      assert.equal(sim.isConfirmed(), true);
+      const ui = createUi();
+      ui.handleInput("Y");
+      assert.equal(ui.isClosed, true);
+      assert.equal(ui.isConfirmed, true);
     });
 
     it("confirms on raw Enter key", () => {
-      const sim = createSimulator();
-      sim.handleInput("\r");
-      assert.equal(sim.isClosed(), true);
-      assert.equal(sim.isConfirmed(), true);
+      const ui = createUi();
+      ui.handleInput("\r");
+      assert.equal(ui.isClosed, true);
+      assert.equal(ui.isConfirmed, true);
     });
 
     it("cancels on 'n'", () => {
-      const sim = createSimulator();
-      sim.handleInput("n");
-      assert.equal(sim.isClosed(), true);
-      assert.equal(sim.isConfirmed(), false);
+      const ui = createUi();
+      ui.handleInput("n");
+      assert.equal(ui.isClosed, true);
+      assert.equal(ui.isConfirmed, false);
     });
 
     it("cancels on 'N'", () => {
-      const sim = createSimulator();
-      sim.handleInput("N");
-      assert.equal(sim.isClosed(), true);
-      assert.equal(sim.isConfirmed(), false);
+      const ui = createUi();
+      ui.handleInput("N");
+      assert.equal(ui.isClosed, true);
+      assert.equal(ui.isConfirmed, false);
     });
 
     it("cancels on raw Escape key", () => {
-      const sim = createSimulator();
-      sim.handleInput("\x1b");
-      assert.equal(sim.isClosed(), true);
-      assert.equal(sim.isConfirmed(), false);
+      const ui = createUi();
+      ui.handleInput("\x1b");
+      assert.equal(ui.isClosed, true);
+      assert.equal(ui.isConfirmed, false);
     });
 
     it("ignores other keys", () => {
-      const sim = createSimulator();
-      sim.handleInput("a");
-      assert.equal(sim.isClosed(), false);
-      sim.handleInput("1");
-      assert.equal(sim.isClosed(), false);
-      sim.handleInput(" ");
-      assert.equal(sim.isClosed(), false);
+      const ui = createUi();
+      ui.handleInput("a");
+      assert.equal(ui.isClosed, false);
+      ui.handleInput("1");
+      assert.equal(ui.isClosed, false);
+      ui.handleInput(" ");
+      assert.equal(ui.isClosed, false);
     });
 
     it("ignores input after close", () => {
-      const sim = createSimulator();
-      sim.handleInput("y");
-      assert.equal(sim.isClosed(), true);
-      sim.handleInput("n");
-      assert.equal(sim.isConfirmed(), true);
+      const ui = createUi();
+      ui.handleInput("y");
+      assert.equal(ui.isClosed, true);
+      ui.handleInput("n");
+      assert.equal(ui.isConfirmed, true);
+    });
+  });
+
+  describe("Render", () => {
+    it("produces non-empty lines", () => {
+      const ui = createUi({ title: "Delete", message: "Really?", risk: "high" });
+      const lines = ui.render(80);
+      assert.ok(lines.length > 0);
+      const joined = lines.join("\n");
+      assert.ok(joined.includes("Delete"));
+      assert.ok(joined.includes("Really?"));
+    });
+
+    it("invalidation clears cache", () => {
+      const ui = createUi();
+      const first = ui.render(80);
+      ui.invalidate();
+      const second = ui.render(80);
+      assert.ok(second.length > 0);
     });
   });
 });

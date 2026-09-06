@@ -64,7 +64,7 @@ function riskIcon(theme: Theme, risk: RiskLevel): string {
 
 /* ── UI component ── */
 
-class ConfirmUi {
+export class ConfirmUi {
   private readonly container: Box;
   private readonly theme: Theme;
   private readonly options: Required<ConfirmOptions>;
