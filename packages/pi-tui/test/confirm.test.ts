@@ -8,45 +8,22 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-/* ── Risk-level constants (imported from source contract) ── */
+/* ── Risk-level constants imported from source contract ── */
 
-const RISK_ICONS: Record<string, string> = {
-  low: "?",
-  medium: "!",
-  high: "\u{F071}",
-};
-
-const RISK_LABELS: Record<string, string> = {
-  low: "Low risk",
-  medium: "Medium risk",
-  high: "HIGH RISK",
-};
-
-/* ── Input simulation using real Key/matchesKey contract ── */
-
+import { RISK_ICONS, RISK_LABELS, type RiskLevel } from "../extensions/pi-tui/ui/confirm.ts";
 import { Key, matchesKey } from "@earendil-works/pi-tui";
 
-function createSimulator() {
-  let closed = false;
-  let confirmed = false;
+/* ── Real ConfirmUi with mock theme ── */
 
-  return {
-    handleInput: (data: string) => {
-      if (closed) return;
-      if (matchesKey(data, Key.escape) || data === "n" || data === "N") {
-        confirmed = false;
-        closed = true;
-        return;
-      }
-      if (data === "y" || data === "Y" || matchesKey(data, Key.enter)) {
-        confirmed = true;
-        closed = true;
-        return;
-      }
-    },
-    isClosed: () => closed,
-    isConfirmed: () => confirmed,
+import { ConfirmUi } from "../extensions/pi-tui/ui/confirm.ts";
+
+function createUi() {
+  const theme = {
+    fg: (_color: string, text: string) => text,
+    bold: (text: string) => text,
+    bg: (_color: string, text: string) => text,
   };
+  return new ConfirmUi(theme as any, { title: "Test", message: "Proceed?" });
 }
 
 /* ── Tests ── */
@@ -54,12 +31,11 @@ function createSimulator() {
 describe("Confirm Dialog", () => {
   describe("Risk levels", () => {
     it("has icons for all risk levels", () => {
-      assert.equal(typeof RISK_ICONS.low, "string");
-      assert.equal(typeof RISK_ICONS.medium, "string");
-      assert.equal(typeof RISK_ICONS.high, "string");
-      assert.ok(RISK_ICONS.low.length > 0);
-      assert.ok(RISK_ICONS.medium.length > 0);
-      assert.ok(RISK_ICONS.high.length > 0);
+      const levels: RiskLevel[] = ["low", "medium", "high"];
+      for (const level of levels) {
+        assert.equal(typeof RISK_ICONS[level], "string");
+        assert.ok(RISK_ICONS[level].length > 0);
+      }
     });
 
     it("has labels for all risk levels", () => {
@@ -73,73 +49,71 @@ describe("Confirm Dialog", () => {
     });
   });
 
-  describe("Input handling via matchesKey contract", () => {
+  describe("Input handling via ConfirmUi", () => {
     it("confirms on 'y'", () => {
-      const sim = createSimulator();
-      sim.handleInput("y");
-      assert.equal(sim.isClosed(), true);
-      assert.equal(sim.isConfirmed(), true);
+      const ui = createUi();
+      ui.handleInput("y");
+      assert.equal(ui.isClosed, true);
+      assert.equal(ui.isConfirmed, true);
     });
 
     it("confirms on 'Y'", () => {
-      const sim = createSimulator();
-      sim.handleInput("Y");
-      assert.equal(sim.isClosed(), true);
-      assert.equal(sim.isConfirmed(), true);
+      const ui = createUi();
+      ui.handleInput("Y");
+      assert.equal(ui.isClosed, true);
+      assert.equal(ui.isConfirmed, true);
     });
 
     it("confirms on Enter via matchesKey", () => {
-      const sim = createSimulator();
-      sim.handleInput(matchesKey("", Key.enter) ? "enter" : "\r");
-      // If matchesKey doesn't match literal "enter", use the actual Enter key
-      if (!sim.isClosed()) {
-        sim.handleInput("\r");
+      const ui = createUi();
+      ui.handleInput(matchesKey("", Key.enter) ? "enter" : "\r");
+      if (!ui.isClosed) {
+        ui.handleInput("\r");
       }
-      assert.equal(sim.isClosed(), true);
-      assert.equal(sim.isConfirmed(), true);
+      assert.equal(ui.isClosed, true);
+      assert.equal(ui.isConfirmed, true);
     });
 
     it("cancels on 'n'", () => {
-      const sim = createSimulator();
-      sim.handleInput("n");
-      assert.equal(sim.isClosed(), true);
-      assert.equal(sim.isConfirmed(), false);
+      const ui = createUi();
+      ui.handleInput("n");
+      assert.equal(ui.isClosed, true);
+      assert.equal(ui.isConfirmed, false);
     });
 
     it("cancels on 'N'", () => {
-      const sim = createSimulator();
-      sim.handleInput("N");
-      assert.equal(sim.isClosed(), true);
-      assert.equal(sim.isConfirmed(), false);
+      const ui = createUi();
+      ui.handleInput("N");
+      assert.equal(ui.isClosed, true);
+      assert.equal(ui.isConfirmed, false);
     });
 
     it("cancels on Escape via matchesKey", () => {
-      const sim = createSimulator();
-      // Test with the actual escape sequence that matchesKey would match
-      sim.handleInput(matchesKey("", Key.escape) ? "escape" : "\x1b");
-      if (!sim.isClosed()) {
-        sim.handleInput("\x1b");
+      const ui = createUi();
+      ui.handleInput(matchesKey("", Key.escape) ? "escape" : "\x1b");
+      if (!ui.isClosed) {
+        ui.handleInput("\x1b");
       }
-      assert.equal(sim.isClosed(), true);
-      assert.equal(sim.isConfirmed(), false);
+      assert.equal(ui.isClosed, true);
+      assert.equal(ui.isConfirmed, false);
     });
 
     it("ignores other keys", () => {
-      const sim = createSimulator();
-      sim.handleInput("a");
-      assert.equal(sim.isClosed(), false);
-      sim.handleInput("1");
-      assert.equal(sim.isClosed(), false);
-      sim.handleInput(" ");
-      assert.equal(sim.isClosed(), false);
+      const ui = createUi();
+      ui.handleInput("a");
+      assert.equal(ui.isClosed, false);
+      ui.handleInput("1");
+      assert.equal(ui.isClosed, false);
+      ui.handleInput(" ");
+      assert.equal(ui.isClosed, false);
     });
 
     it("ignores input after close", () => {
-      const sim = createSimulator();
-      sim.handleInput("y");
-      assert.equal(sim.isClosed(), true);
-      sim.handleInput("n");
-      assert.equal(sim.isConfirmed(), true); // still confirmed from first input
+      const ui = createUi();
+      ui.handleInput("y");
+      assert.equal(ui.isClosed, true);
+      ui.handleInput("n");
+      assert.equal(ui.isConfirmed, true);
     });
   });
 });
