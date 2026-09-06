@@ -1,7 +1,7 @@
 /**
  * Control Center — tabbed overlay for pi-tui features.
  *
- * Tabs: Overview, Conversations, Context, Appearance, Renderers, Settings, Tasks
+ * Tabs: General, Appearance, Footer, Tasks
  *
  * This module provides the tasks tab integration for the Control Center.
  * The existing settings-command.ts handles the main Control Center tabs.
