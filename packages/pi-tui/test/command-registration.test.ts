@@ -57,23 +57,39 @@ function createMockCtx(overrides: Record<string, any> = {}) {
 /* ── Tests ── */
 
 describe("Command registration", () => {
-  it("registers /pi-tui command", () => {
+  it("registers /pi-tui and subcommands", () => {
     const pi = createMockPI();
     registerSettingsCommand(pi, { getConfig: () => ({}), onConfigChanged: () => {} });
-    assert.equal(pi._commands.length, 1);
-    assert.equal(pi._commands[0]!.name, "pi-tui");
+    const names = pi._commands.map((c) => c.name);
+    assert.ok(names.includes("pi-tui"), "should register /pi-tui");
+    assert.ok(names.includes("pi-tui-reload"), "should register /pi-tui-reload");
+    assert.ok(names.includes("pi-tui-conversations"), "should register /pi-tui-conversations");
+    assert.ok(names.includes("pi-tui-tasks"), "should register /pi-tui-tasks");
+    assert.equal(pi._commands.length, 4);
   });
 
-  it("command has description", () => {
+  it("/pi-tui has description", () => {
     const pi = createMockPI();
     registerSettingsCommand(pi, { getConfig: () => ({}), onConfigChanged: () => {} });
-    assert.ok(pi._commands[0]!.description.includes("pi-tui"));
+    const cmd = pi._commands.find((c) => c.name === "pi-tui");
+    assert.ok(cmd!.description.includes("Control Center"));
   });
 
-  it("command handler is a function", () => {
+  it("subcommands have descriptions", () => {
     const pi = createMockPI();
     registerSettingsCommand(pi, { getConfig: () => ({}), onConfigChanged: () => {} });
-    assert.equal(typeof pi._commands[0]!.handler, "function");
+    for (const cmd of pi._commands) {
+      assert.equal(typeof cmd.handler, "function", `${cmd.name} handler should be a function`);
+      assert.ok(cmd.description.length > 0, `${cmd.name} should have a description`);
+    }
+  });
+
+  it("all command handlers are functions", () => {
+    const pi = createMockPI();
+    registerSettingsCommand(pi, { getConfig: () => ({}), onConfigChanged: () => {} });
+    for (const cmd of pi._commands) {
+      assert.equal(typeof cmd.handler, "function");
+    }
   });
 });
 
@@ -86,7 +102,8 @@ describe("Command handler behavior", () => {
       onConfigChanged: () => { reloadCalled = true; },
     });
     const ctx = createMockCtx();
-    await pi._commands[0]!.handler("reload", ctx);
+    const reloadCmd = pi._commands.find((c) => c.name === "pi-tui-reload");
+    await reloadCmd!.handler("", ctx);
     assert.ok(reloadCalled);
     assert.equal(ctx.getNotified()?.msg, "TUI reloaded from config");
   });
@@ -95,7 +112,8 @@ describe("Command handler behavior", () => {
     const pi = createMockPI();
     registerSettingsCommand(pi, { getConfig: () => ({}), onConfigChanged: () => {} });
     const ctx = createMockCtx();
-    await pi._commands[0]!.handler("", ctx);
+    const mainCmd = pi._commands.find((c) => c.name === "pi-tui");
+    await mainCmd!.handler("", ctx);
     assert.ok(ctx.getCustomCalled());
   });
 
@@ -103,7 +121,8 @@ describe("Command handler behavior", () => {
     const pi = createMockPI();
     registerSettingsCommand(pi, { getConfig: () => ({}), onConfigChanged: () => {} });
     const ctx = createMockCtx();
-    await pi._commands[0]!.handler("foobar", ctx);
+    const mainCmd = pi._commands.find((c) => c.name === "pi-tui");
+    await mainCmd!.handler("foobar", ctx);
     assert.equal(ctx.getNotified()?.type, "warning");
     assert.ok(ctx.getNotified()?.msg.includes("Unknown"));
   });
@@ -112,7 +131,8 @@ describe("Command handler behavior", () => {
     const pi = createMockPI();
     registerSettingsCommand(pi, { getConfig: () => ({}), onConfigChanged: () => {} });
     const ctx = createMockCtx({ hasUI: false });
-    await pi._commands[0]!.handler("", ctx);
+    const mainCmd = pi._commands.find((c) => c.name === "pi-tui");
+    await mainCmd!.handler("", ctx);
     assert.equal(ctx.getCustomCalled(), false);
     assert.equal(ctx.getNotified(), null);
   });

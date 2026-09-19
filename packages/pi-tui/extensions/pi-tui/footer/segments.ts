@@ -24,6 +24,7 @@ export interface SegmentContext {
     model?: FooterConfig["model"];
     thinking?: FooterConfig["thinking"];
     extStatus?: FooterConfig["extStatus"];
+    connectionStatus?: FooterConfig["connectionStatus"];
   };
   modelId?: string;
   contextPercent?: number | null;
@@ -35,6 +36,11 @@ export interface SegmentContext {
   git?: GitStatus;
   iconMode?: string;
   iconOverrides?: Partial<SegmentIcons>;
+  /** Connection status freshness data */
+  connectionStatus?: {
+    lastValidReadMs: number;
+    staleThresholdMs: number;
+  };
 }
 
 function segmentIcon(ctx: SegmentContext, segment: keyof SegmentIcons, configured?: string): string {
@@ -197,6 +203,31 @@ export function renderExtStatus(ctx: SegmentContext): string {
   return statuses.length ? `${segmentIcon(ctx, "extensionStatus", ctx.config.extStatus?.icon)}${statuses.join(" ")}` : "";
 }
 
+/** Render connection status: fresh or stale with time since last valid read. */
+export function renderConnectionStatus(ctx: SegmentContext): string {
+  const conn = ctx.connectionStatus;
+  if (!conn) return "";
+  const elapsed = Date.now() - conn.lastValidReadMs;
+  const isStale = elapsed > conn.staleThresholdMs;
+  const prefix = segmentIcon(ctx, "connectionStatus", ctx.config.connectionStatus?.icon);
+  const fallback = iconDisabled(ctx, "connectionStatus", ctx.config.connectionStatus?.icon) ? "" : prefix || "\u{F06E} ";
+  if (isStale) {
+    const timeSince = formatElapsed(elapsed);
+    return `${fallback}${ctx.theme.fg("warning", `stale ${timeSince}`)}`;
+  }
+  return `${fallback}${ctx.theme.fg("accent", "fresh")}`;
+}
+
+/** Format milliseconds into a human-readable elapsed string. */
+export function formatElapsed(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m${(seconds % 60).toString().padStart(2, "0")}s`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours}h${(minutes % 60).toString().padStart(2, "0")}m`;
+}
+
 function formatTokens(count: number): string {
   if (count < 1000) return count.toString();
   if (count < 10000) return `${(count / 1000).toFixed(1)}k`;
@@ -226,4 +257,5 @@ export const SEGMENT_RENDERERS: Record<string, SegmentRenderer> = {
   cost: renderCost,
   ext_status: renderExtStatus,
   extStatus: renderExtStatus,
+  connectionStatus: renderConnectionStatus,
 };
