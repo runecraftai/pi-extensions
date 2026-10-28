@@ -8,6 +8,7 @@ Monorepo of [pi](https://pi.dev) extensions by Runecraft.
 |---------|-------------|---------|
 | [`packages/pi-tui`](./packages/pi-tui) | Customizable TUI — header, footer, editor, context view | `pi install npm:@runecraft/pi-tui` |
 | [`packages/graphify-pi`](./packages/graphify-pi) | Knowledge-graph query tools (graphify CLI wrapper) | `pi install npm:@runecraft/graphify-pi` |
+| [`packages/pi-polish`](./packages/pi-polish) | Phased working indicator, grouped tool output, and highlighted diffs | `pi install npm:@runecraft/pi-polish` |
 
 > **Forward note:** [graphify-pi](https://github.com/runecraftai/graphify-pi) will be consolidated into this monorepo later. No graphify-related work is planned for this phase.
 
@@ -59,6 +60,7 @@ The package reads `~/.pi/agent/pi-tui.json`. Configure footer segments under `fo
 
 ```bash
 pi install npm:@runecraft/graphify-pi
+pi install npm:@runecraft/pi-polish
 ```
 
 ## Architecture
