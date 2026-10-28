@@ -1,0 +1,49 @@
+{
+  "name": "@runecraft/pi-polish",
+  "version": "0.1.9",
+  "description": "Phased working indicators, grouped tool output, and highlighted diffs for Squad operators in Pi.",
+  "type": "module",
+  "author": "Runecraft",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/runecraftai/pi-extensions.git",
+    "directory": "packages/pi-polish"
+  },
+  "scripts": {
+    "test": "node --experimental-transform-types --test test/*.test.ts",
+    "typecheck": "tsc --ignoreConfig --noEmit --allowImportingTsExtensions --module NodeNext --moduleResolution NodeNext --target ES2022 --skipLibCheck extensions/*.ts"
+  },
+  "keywords": [
+    "pi-package",
+    "pi",
+    "tui",
+    "squad",
+    "diff",
+    "syntax-highlighting"
+  ],
+  "pi": {
+    "extensions": [
+      "./extensions/tools.ts",
+      "./extensions/chrome.ts"
+    ]
+  },
+  "dependencies": {
+    "diff": "9.0.0",
+    "shiki": "4.5.0",
+    "@shikijs/langs": "4.5.0",
+    "@shikijs/themes": "4.5.0"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": ">=1.4.0",
+    "@earendil-works/pi-tui": ">=1.4.0"
+  },
+  "files": [
+    "extensions",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

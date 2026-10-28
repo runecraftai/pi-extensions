@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        package: [packages/pi-tui, packages/graphify-pi]
+        package: [packages/pi-tui, packages/graphify-pi, packages/pi-polish]
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
