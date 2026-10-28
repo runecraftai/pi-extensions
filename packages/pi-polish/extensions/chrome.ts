@@ -1,4 +1,4 @@
-import { AssistantMessageComponent, CustomEditor, type ExtensionAPI, UserMessageComponent } from "@earendil-works/pi-coding-agent";
+import { AssistantMessageComponent, type ExtensionAPI, UserMessageComponent } from "@earendil-works/pi-coding-agent";
 import { Markdown, MouseRegion, Spacer, Text, truncateToWidth } from "@earendil-works/pi-tui";
 
 const PROMPT = "❯";
@@ -11,7 +11,7 @@ const SPINNER = ["·", "✢", "✱", "✶", "✻", "✽", "✻", "✶", "✱", "
 const LEADING_ESCAPES = /^((?:\x1b\[[0-9;]*m|\x1b\][^\x07]*\x07)*) {2}/;
 const OSC133_START = "\x1b]133;A\x07";
 const OSC133_END = "\x1b]133;B\x07\x1b]133;C\x07";
-const patched = Symbol.for("pi-polish.patched");
+const patched = Symbol.for("@runecraft/pi-polish.patched");
 
 function markFirstLine(line: string, marker: string): string {
 	return line.replace(LEADING_ESCAPES, (_m, esc: string) => `${esc}${marker} `);
@@ -74,7 +74,7 @@ export default function (pi: ExtensionAPI) {
 			},
 		);
 	} catch (err) {
-		console.error(`[pi-polish] could not patch message components: ${(err as Error).message}`);
+		console.error(`[@runecraft/pi-polish] could not patch message components: ${(err as Error).message}`);
 	}
 
 	// Orange working line: what pi is doing now, elapsed time and output tokens for this run
@@ -87,9 +87,9 @@ export default function (pi: ExtensionAPI) {
 	const show = (ctx: any) => {
 		const secs = Math.round((Date.now() - started) / 1000);
 		const stats = `(${secs}s · ↓ ${fmtTokens(tokens + Math.round(streamed / 4))} tokens)`;
-		ctx.ui.setWorkingMessage(`${ORANGE}${phase}…${RESET} ${DIM}${stats}${RESET}`);
+		ctx.ui.setWorkingMessage(`${ORANGE}Working... ${phase}…${RESET} ${DIM}${stats}${RESET}`);
 	};
-	// Just the verb for tools that pi-polish draws as live rows, which already show what is running;
+	// Just the verb for tools that Runecraft Polish draws as live rows, which already show what is running;
 	// other extensions' tools keep their name, since their rows may not
 	const toolPhase = (name: string) => {
 		switch (name) {
@@ -171,28 +171,13 @@ export default function (pi: ExtensionAPI) {
 	pi.on("session_start", async (_event, ctx) => {
 		if (!ctx.hasUI) return;
 		turnLine = undefined;
-		ctx.ui.setWidget("pi-polish-turn", (tui, theme) => {
+		ctx.ui.setWidget("@runecraft/pi-polish-turn", (tui, theme) => {
 			redrawTurn = () => tui.requestRender();
 			return { invalidate() {}, render: (width: number) => (turnLine ? [truncateToWidth(theme.fg("dim", turnLine), width)] : []) };
 		});
 	});
 	pi.on("session_shutdown", async () => clearInterval(timer));
 
-	// ❯ before the input: two columns of editor padding, with the marker drawn into the first content line
-	pi.on("session_start", async (_event, ctx) => {
-		if (!ctx.hasUI) return;
-		const previous = ctx.ui.getEditorComponent();
-		ctx.ui.setEditorComponent((tui, theme, keybindings) => {
-			const editor: any = previous?.(tui, theme, keybindings) ?? new CustomEditor(tui, theme, keybindings);
-			const render = editor.render.bind(editor);
-			editor.render = (width: number) => {
-				// Set on every render because pi may apply its own editor padding setting after creation
-				editor.paddingX = 2;
-				const lines: string[] = render(width);
-				if (lines.length > 1) lines[1] = markFirstLine(lines[1], PROMPT);
-				return lines;
-			};
-			return editor;
-		});
-	});
+	// Leave the live editor and its buffer untouched: Squad must see empty input as empty.
+	// The ❯ marker is reserved for submitted messages above.
 }

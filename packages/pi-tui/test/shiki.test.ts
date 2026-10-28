@@ -1,12 +1,13 @@
 /**
  * Tests for shiki lazy loader — fallback, cache, timeout.
  *
- * Since Shiki is not installed in the test environment, these tests
- * verify the fallback behavior (returns plain text when Shiki unavailable).
+ * Exercise unavailable-dependency and abort paths in isolated processes so
+ * installed workspace dependencies and earlier module caches cannot mask them.
  */
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import {
   highlight,
   highlightSync,
@@ -15,12 +16,25 @@ import {
   canHighlight,
 } from "../extensions/pi-tui/renderers/shiki.ts";
 
+function isolatedShiki(expression: string, unavailable = false) {
+  const moduleUrl = new URL("../extensions/pi-tui/renderers/shiki.ts", import.meta.url).href;
+  const output = execFileSync(process.execPath, ["--input-type=module", "--eval", `
+    import { registerHooks } from "node:module";
+    ${unavailable ? `registerHooks({ resolve(specifier, context, next) {
+      if (specifier === "shiki") throw new Error("Shiki deliberately unavailable");
+      return next(specifier, context);
+    } });` : ""}
+    const shiki = await import(${JSON.stringify(moduleUrl)});
+    console.log(JSON.stringify(await (${expression})));
+  `], { encoding: "utf8" });
+  return JSON.parse(output);
+}
+
 describe("shiki", () => {
   describe("highlight", () => {
     it("returns plain text when Shiki is not available", async () => {
       const code = 'const x = 1;\nconsole.log(x);';
-      const result = await highlight(code, "typescript", "github-dark");
-      // Without Shiki installed, should return plain text
+      const result = isolatedShiki(`shiki.highlight(${JSON.stringify(code)}, "typescript", "github-dark")`, true);
       assert.equal(result, code);
     });
 
@@ -30,10 +44,8 @@ describe("shiki", () => {
     });
 
     it("returns plain text on abort signal", async () => {
-      const controller = new AbortController();
-      controller.abort();
       const code = 'const x = 1;';
-      const result = await highlight(code, "typescript", "github-dark", controller.signal);
+      const result = isolatedShiki(`shiki.highlight(${JSON.stringify(code)}, "typescript", "github-dark", AbortSignal.abort())`);
       assert.equal(result, code);
     });
   });
@@ -119,15 +131,17 @@ describe("shiki", () => {
   });
 
   describe("canHighlight", () => {
-    it("returns false when Shiki is not installed", async () => {
-      const result = await canHighlight();
-      assert.equal(result, false);
+    it("reports whether Shiki is installed", async () => {
+      const installed = await import("shiki").then(() => true, () => false);
+      assert.equal(await canHighlight(), installed);
+    });
+
+    it("returns false when Shiki loading is unavailable", () => {
+      assert.equal(isolatedShiki("shiki.canHighlight()", true), false);
     });
 
     it("returns false on abort signal", async () => {
-      const controller = new AbortController();
-      controller.abort();
-      const result = await canHighlight(controller.signal);
+      const result = isolatedShiki("shiki.canHighlight(AbortSignal.abort())");
       assert.equal(result, false);
     });
   });

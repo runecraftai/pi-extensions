@@ -1,29 +1,75 @@
-# pi-polish
+# @runecraft/pi-polish
 
-Makes [Pi](https://pi.dev)'s output look like Claude Code's: tool calls fold into short summary lines, and edits show as colored diffs.
+Runecraft Polish makes a Squad operator's work legible in Pi: phased working
+indicators, compact tool groups, and syntax-highlighted diffs. It changes
+presentation, not tool execution.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Pringled/pi-extensions/main/assets/images/pi-polish-dark.gif">
-  <img src="https://raw.githubusercontent.com/Pringled/pi-extensions/main/assets/images/pi-polish-light.gif" alt="pi-polish demo">
-</picture>
+## Use
+
+Requires Pi 1.4 or later. From this monorepo, try both extension entry points
+without installing the package or changing your Pi settings:
 
 ```bash
-pi install npm:pi-polish
+pi -e ./packages/pi-polish/extensions/tools.ts \
+   -e ./packages/pi-polish/extensions/chrome.ts
 ```
 
-## Features
+## Rendering
 
-- Shell commands, file reads, searches and MCP tool calls in a row fold into one line that updates while they run (`Running 2 shell commands… · 5s`, with the command and its latest output line below) and then sums them up (`Ran 3 shell commands, read 2 files` or `Called 2 MCP tools`). Click a row to see its commands and their full output, and click again to fold it; `ctrl+o` does this for every row.
-- Edits and new files show as diffs with syntax highlighting and the changed words marked, in colors that follow your Pi theme, dark or light.
-- Reads, searches, shell commands and MCP calls show a pulsing dot in your theme's accent color while they run, then turn into a quiet grey row once done, with a red dot if one failed. Edits and writes keep a green dot with their diff.
-- An orange status line shows what Pi is doing, how long it has been at it and how many tokens it has written. When Pi finishes, a dim line says how long it worked and when it was done.
-- `❯` marks your messages and `●` marks Pi's replies.
-- A short instruction to the model to change files with Pi's edit and write tools instead of shell commands like `sed -i`, so you see the changes as diffs.
+- Consecutive shell commands, reads, searches, directory listings, tool searches,
+  and MCP calls fold into a summary. Live groups show the current command and
+  latest output. Click a finished group to expand it, or use `ctrl+o` to expand
+  all tool output.
+- Edits and writes show colored diff bands, syntax highlighting, and changed-word
+  highlights that follow your dark or light Pi theme.
+- A pulsing dot marks running tools; failed tools retain an error marker.
+- Submitted user messages have a `❯` marker; assistant replies have `●`.
+- Tool guidelines encourage Pi's file tools so edits remain visible as diffs.
 
-## Compatibility
+The orange working line keeps the phase, elapsed seconds, and output-token count:
 
-pi-polish only changes how Pi's built-in tools and MCP tools are drawn; the tools themselves run exactly as before. The chat styling (the markers and the status line) reaches into Pi's internal UI, so a new Pi release can break that part of the look until pi-polish is updated. Your sessions are never affected. Tested with Pi 1.4.
+```text
+Working... Thinking… (2s · ↓ 0 tokens)
+Working... Responding… (4s · ↓ 120 tokens)
+Working... Running… (6s · ↓ 240 tokens)
+```
+
+Other phases include reading, editing, writing, searching, preparing a tool call,
+starting a background job, calling an MCP tool, and waiting for an answer.
+Streaming token counts are estimates until the assistant message finishes.
+A completed turn leaves a dim duration and completion-time summary.
+
+## Squad monitoring contract
+
+Every active working line contains the exact ASCII token `Working...`. Squad's
+legacy rendered-line matcher requires those three full stops, even though the
+phase uses a Unicode ellipsis. This fallback supports submit acknowledgement
+and away-mode delivery guards; Pi lifecycle records remain the modern worker
+state source. A phase describing a question is not itself proof of idle state.
+
+Polish never writes to the editor buffer, replaces the live editor, adds editor
+padding, or draws a prompt into its content rows. An empty composer stays empty,
+and typed, unsubmitted text stays pending. Existing editor customizations are
+left intact. Markers apply only to submitted message history.
+
+Message styling patches Pi's internal component rendering, so verify it when
+upgrading Pi. Tool schemas, execution, and session contents are unchanged.
+
+## Development
+
+From the repository root:
+
+```bash
+npm install
+npm test
+npm run typecheck
+```
+
+`test/compat.test.ts` exercises lifecycle rendering against Squad's actual busy
+regex and a snapshot of its shell composer classifier. It also checks that no
+editor-buffer writes occur. The package's identity guard checks its distributable
+surfaces. No inherited test suite is shipped with this package.
 
 ## License
 
-MIT
+MIT. See [LICENSE](LICENSE).

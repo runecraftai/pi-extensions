@@ -439,7 +439,7 @@ function oneLine(lines: string[], suffix = ""): Component {
 
 export default function (pi: ExtensionAPI) {
 	// Tells pi-background that its ctrl+b hint goes under the running command's row, drawn below
-	(globalThis as any)[Symbol.for("pi-polish.showsMoveHint")] = true;
+	(globalThis as any)[Symbol.for("@runecraft/pi-polish.showsMoveHint")] = true;
 	const cwd = process.cwd();
 	const groupOf = new Map<string, Group>();
 	const rowInvalidate = new Map<string, () => void>();
@@ -499,9 +499,9 @@ export default function (pi: ExtensionAPI) {
 		for (const invalidate of rowInvalidate.values()) invalidate();
 		// History rows were drawn before they were grouped; a full redraw clears their stale lines
 		if (ctx.hasUI) {
-			ctx.ui.setWidget("pi-polish-redraw", (tui) => {
+			ctx.ui.setWidget("@runecraft/pi-polish-redraw", (tui) => {
 				setTimeout(() => {
-					ctx.ui.setWidget("pi-polish-redraw", undefined);
+					ctx.ui.setWidget("@runecraft/pi-polish-redraw", undefined);
 					tui.requestRender(true);
 				}, 0);
 				return new Container();
