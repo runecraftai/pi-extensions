@@ -106,10 +106,10 @@ versions are not already in the npm registry.
 publish access to the public packages. Add it in the repository's **Settings →
 Secrets and variables → Actions** page. GitHub Actions also requests an OIDC
 token so npm provenance is attached to each publication. The private workspace
-root is never published. For this release, `packages/pi-tui/package.json` already
-sets version `0.2.1`, so merging it lets the release workflow publish directly
-without a version pull request. Do not add versions or publish packages manually
-for normal changes.
+root is never published. A package whose manifest version is not already in the
+npm registry — for example a newly acquired package — is published directly by
+the release workflow, without a version pull request. Do not add versions or
+publish packages manually for normal changes.
 
 ## License
 
