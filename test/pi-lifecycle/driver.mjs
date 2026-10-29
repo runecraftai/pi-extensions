@@ -1,0 +1,161 @@
+import assert from 'node:assert/strict';
+import { spawn, spawnSync } from 'node:child_process';
+import { EventEmitter, once } from 'node:events';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+export const PI_VERSION = '1.4.0';
+const fixture = fileURLToPath(new URL('./fixture.ts', import.meta.url));
+const deadline = 15000;
+
+export function requirePi(binary = process.env.PI_LIFECYCLE_BIN || 'pi') {
+  const result = spawnSync(binary, ['--version'], { encoding: 'utf8', timeout: 5000 });
+  if (result.error || result.status !== 0 || result.stdout.trim() !== PI_VERSION) {
+    throw new Error(`Lifecycle tests REQUIRE Pi ${PI_VERSION} on PATH (or PI_LIFECYCLE_BIN). ` +
+      `Install that exact version; tests never skip. Got: ${result.error?.message || result.stdout || result.stderr || result.status}`);
+  }
+  return binary.includes('/') ? resolve(binary) : binary;
+}
+
+export async function runScenario(binary, scenario, mutation) {
+  // Keep every generated file inside the worktree, not the operator's ~/.pi.
+  const scratch = await mkdtemp(resolve('.pi-lifecycle-'));
+  const home = join(scratch, 'home');
+  const agentDir = join(home, '.pi', 'agent');
+  await mkdir(agentDir, { recursive: true });
+  const override = scenario === 'D';
+  await writeFile(join(agentDir, 'settings.json'), JSON.stringify({
+    compaction: {
+      enabled: true, reserveTokens: 100, keepRecentTokens: 1,
+      ...(override ? { modelOverrides: { 'lifecycle-fake/scripted': { reserveTokens: 200, keepRecentTokens: 2 } } } : {}),
+    }, retry: { enabled: false },
+  }));
+  const trace = [];
+  const rpc = [];
+  let stderr = '';
+  let failure;
+  const updates = new EventEmitter();
+  const child = spawn(binary, [
+    '--mode', 'rpc', '--no-session', '--offline', '--no-extensions', '--no-mcp',
+    '--no-skills', '--no-prompt-templates', '--no-themes', '--no-context-files',
+    '--no-approve', '--no-builtin-tools', '--extension', fixture,
+    '--provider', 'lifecycle-fake', '--model', 'scripted', '--tools', 'slow',
+    '--system-prompt', 'Deterministic lifecycle test.',
+  ], {
+    cwd: scratch,
+    // Deliberately allowlist environment: no provider credentials or agent config leak.
+    env: {
+      PATH: process.env.PATH, HOME: home, XDG_CONFIG_HOME: join(home, '.config'),
+      PI_CODING_AGENT_DIR: agentDir, PI_OFFLINE: '1', NO_COLOR: '1',
+      PI_LIFECYCLE_SCENARIO: scenario, ...(mutation ? { PI_LIFECYCLE_MUTATION: mutation } : {}),
+    },
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+  const exited = once(child, 'close');
+  const diagnostic = () => `Scenario ${scenario}${mutation ? ` (${mutation})` : ''}: ${stderr}\n` +
+    JSON.stringify(trace, null, 2);
+  child.on('error', (error) => { failure = error; updates.emit('update'); });
+  child.on('close', (code, signal) => {
+    failure ||= new Error(`Pi exited unexpectedly: code=${code}, signal=${signal}`);
+    updates.emit('update');
+  });
+  const watchdog = setTimeout(() => {
+    failure = new Error(`Scenario exceeded ${deadline}ms. ${diagnostic()}`);
+    child.kill('SIGKILL');
+    updates.emit('update');
+  }, deadline);
+  function lines(stream, callback) {
+    let pending = '';
+    stream.setEncoding('utf8');
+    stream.on('data', (chunk) => {
+      pending += chunk;
+      let end;
+      while ((end = pending.indexOf('\n')) !== -1) {
+        callback(pending.slice(0, end).replace(/\r$/, ''));
+        pending = pending.slice(end + 1);
+      }
+      updates.emit('update');
+    });
+  }
+  lines(child.stdout, (line) => {
+    try { rpc.push(JSON.parse(line)); } catch { failure = new Error(`Non-JSON RPC output: ${line}`); }
+  });
+  lines(child.stderr, (line) => {
+    if (line.startsWith('LIFECYCLE ')) {
+      trace.push(JSON.parse(line.slice('LIFECYCLE '.length)));
+    } else stderr += `${line}\n`;
+  });
+  async function until(predicate) {
+    while (!predicate()) {
+      if (failure) throw failure;
+      await once(updates, 'update');
+    }
+  }
+  let id = 0;
+  async function command(type, data = {}) {
+    const key = String(++id);
+    child.stdin.write(`${JSON.stringify({ id: key, type, ...data })}\n`);
+    await until(() => rpc.some((record) => record.type === 'response' && record.id === key));
+    const response = rpc.find((record) => record.type === 'response' && record.id === key);
+    assert.equal(response.success, true, `${JSON.stringify(response)}\n${diagnostic()}`);
+    return response.data;
+  }
+  const has = (event) => trace.some((record) => record.event === event);
+  try {
+    await until(() => has('fixture.loaded'));
+    const historyRepeats = ['A', 'B', 'E'].includes(scenario) || mutation === 'abort' ? 4200 : 3500;
+    await command('prompt', { message: `History: ${'history '.repeat(historyRepeats)}` });
+    await until(() => has('agent_settled'));
+    await command('prompt', { message: '/harness-work' });
+    trace.length = 0;
+    rpc.length = 0;
+    await command('prompt', { message: 'Run the controlled tool, then finish.' });
+    if (['C', 'G'].includes(scenario)) {
+      await until(() => has('session_compact'));
+    } else {
+      await until(() => has('tool.started'));
+      if (!['F', 'I'].includes(scenario)) {
+        await command('prompt', { message: '/harness-summary' });
+        await until(() => has('summary.ready'));
+      }
+      if (scenario === 'I') await until(() => has('summary.failed'));
+      if (['A', 'B', 'E'].includes(scenario) || mutation === 'abort') {
+        await until(() => has('session_compact'));
+      } else {
+        await command('prompt', { message: '/harness-release' });
+      }
+    }
+    // The legacy async continuation is scheduled after the manual compaction callback.
+    if (['A', 'B', 'E'].includes(scenario) || mutation === 'abort') {
+      await until(() => trace.some((record) => record.event === 'resume' && record.source === 'async'));
+      await until(() => trace.filter((record) => record.event === 'agent_settled').length >= 2);
+    } else {
+      await until(() => has('agent_settled'));
+    }
+    await command('prompt', { message: '/harness-drain' });
+    const messages = await command('get_messages');
+    const entries = await command('get_entries');
+    assert.equal(rpc.some((record) => record.type === 'extension_error'), false, JSON.stringify(rpc.filter((record) => record.type === 'extension_error')));
+    assert.equal(has('fixture.error'), false, diagnostic());
+    assert.equal(has('network.forbidden'), false, diagnostic());
+    assert.ok(trace.filter((record) => record.event === 'provider.request')
+      .every((record) => record.model === 'lifecycle-fake/scripted'), diagnostic());
+    return { scenario, trace, rpc, messages: messages.messages, entries: entries.entries, diagnostic: diagnostic() };
+  } catch (error) {
+    error.message += `\n${diagnostic()}`;
+    throw error;
+  } finally {
+    clearTimeout(watchdog);
+    child.kill('SIGKILL');
+    await exited;
+    await rm(scratch, { recursive: true, force: true });
+  }
+}
+
+export function assertToolIntact(result) {
+  assert.equal(result.trace.some((record) => record.event === 'ctx.abort'), false, 'Safety violation: ctx.abort() called');
+  const tool = result.trace.filter((record) => record.event === 'tool.finished');
+  assert.equal(tool.length, 1, 'Expected exactly one real tool execution');
+  assert.equal(tool[0].aborted, false, 'Safety violation: running tool was aborted');
+}
