@@ -65,6 +65,10 @@ npm test
 npm run typecheck
 ```
 
+Root `npm test` also runs the lifecycle harness; see
+[`test/pi-lifecycle/README.md`](../../test/pi-lifecycle/README.md) for its pinned
+Pi requirement and setup.
+
 `test/compat.test.ts` exercises lifecycle rendering against Squad's actual busy
 regex and a snapshot of its shell composer classifier. It also checks that no
 editor-buffer writes occur. The package's identity guard checks its distributable

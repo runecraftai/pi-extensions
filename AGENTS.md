@@ -12,6 +12,10 @@ This file is the project's committed base for project-intrinsic agent knowledge:
 
 **Footer rendering:** The canonical pipeline is in `footer/index.ts`; it uses `FOOTER_PRIORITY`, async Git snapshots, Nerd Font icon resolution, and a context bar that fills remaining line-1 width.
 
+## Lifecycle regression tests
+
+`npm test` includes the real-Pi fake-provider harness. It requires Pi **1.4.0** (`PI_LIFECYCLE_BIN` or a mise-managed install; it never probes a bare `PATH` launcher, and missing or mismatched versions fail, never skip). See `test/pi-lifecycle/README.md` for isolation, A–J contracts, and negative controls; this is not yet an upstream-package integration test.
+
 ## Maintaining this file
 
 Keep this file for knowledge useful to almost every future agent session in this project.

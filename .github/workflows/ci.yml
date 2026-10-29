@@ -20,6 +20,10 @@ jobs:
       - run: npm ci
         env:
           HUSKY: "0"
+      - name: Install operator Pi version for lifecycle tests
+        run: |
+          npm install --global --ignore-scripts @earendil-works/pi-coding-agent@1.4.0
+          echo "PI_LIFECYCLE_BIN=$(command -v pi)" >> "$GITHUB_ENV"
       - run: npm run typecheck
       - run: npm test
       - run: npm run test:release

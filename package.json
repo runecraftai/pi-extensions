@@ -8,7 +8,8 @@
     "packages/*"
   ],
   "scripts": {
-    "test": "node --experimental-transform-types --test packages/*/test/**/*.test.ts",
+    "test": "node --experimental-transform-types --test packages/*/test/**/*.test.ts test/pi-lifecycle/*.test.mjs",
+    "test:lifecycle": "node --test test/pi-lifecycle/*.test.mjs",
     "typecheck": "tsc --noEmit && npm run typecheck --workspace=@runecraft/pi-polish",
     "test:release": "node --test test/release-config.test.mjs",
     "changeset:version": "changeset version",
