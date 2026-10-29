@@ -21,6 +21,11 @@ shims are not usable here: a mise shim is a symlink to the mise binary, so
 `readlink -f "$(command -v pi)"` yields mise itself rather than the install it
 manages.
 
+Preflight regression tests cover a bare `PI_LIFECYCLE_BIN` name, a missing or
+failing mise, and a wrong-version mise candidate: each fails with a diagnostic
+while spawning no `pi` launcher and no mise command beyond the read-only `which
+pi` query.
+
 CI installs the pinned Pi CLI and exports it as `PI_LIFECYCLE_BIN` before
 running `npm test`. Pi resolves extension
 imports of `@earendil-works/pi-ai` and `@earendil-works/pi-coding-agent` to its
