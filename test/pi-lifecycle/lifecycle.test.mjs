@@ -247,6 +247,17 @@ test('version preflight accepts a concrete executable and rejects a preamble lau
     assert.match(error.message, /PI_LIFECYCLE_BIN/);
     assert.match(error.message, /launcher/);
     assert.doesNotMatch(error.message, /Install that exact version/);
+
+    // Clean under the operator environment, noisy under the harness's isolated one: only a probe that
+    // reuses the harness environment rejects this shim, which is how a re-resolving launcher behaves.
+    const shim = join(scratch, 'pi-shim');
+    await writeFile(shim,
+      `#!/bin/sh\n[ -z "$PI_CODING_AGENT_DIR" ] || echo "launcher: pinned ${PI_VERSION}"\n` +
+      `exec "${concrete}" "$@"\n`, { mode: 0o755 });
+    let shimError;
+    try { requirePi(shim); } catch (failure) { shimError = failure; }
+    assert.ok(shimError, 'isolated-environment launcher was accepted as the RPC binary');
+    assert.match(shimError.message, /launcher/);
   } finally {
     await rm(scratch, { recursive: true, force: true });
   }
@@ -299,6 +310,16 @@ test('version preflight never executes the PATH pi launcher when resolution fail
     // Any execution - version probe or RPC spawn - records the invocation.
     await writeFile(join(scratch, 'pi'),
       `#!/bin/sh\necho "$@" >> "${marker}"\necho ${PI_VERSION}\n`, { mode: 0o755 });
+
+    // A bare executable name would itself be resolved through PATH.
+    process.env.PI_LIFECYCLE_BIN = 'pi';
+    process.env.PATH = scratch;
+    const bareName = rejection();
+    assert.match(bareName.message, /concrete executable path/);
+    assert.match(bareName.message, /mise which pi/);
+    assert.match(bareName.message, /never skip/);
+    assert.equal(await launcherRan(), false);
+
     delete process.env.PI_LIFECYCLE_BIN;
     delete process.env.PI_CODING_AGENT_DIR;
 

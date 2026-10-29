@@ -15,7 +15,8 @@ Pi. The harness validates a launcher candidate under that same isolated
 environment before spawning it, and asks mise's read-only `mise which pi` for
 the install it manages rather than executing an auto-installing `pi` launcher.
 When mise is absent or does not provide Pi 1.4.0, set `PI_LIFECYCLE_BIN` to the
-concrete executable (`mise which pi`).
+concrete executable's path (`mise which pi` or `command -v pi`); a bare `pi`
+name is rejected instead of being resolved through `PATH`.
 
 CI installs the pinned Pi CLI and exports it as `PI_LIFECYCLE_BIN` before
 running `npm test`. Pi resolves extension

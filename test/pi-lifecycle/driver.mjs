@@ -66,10 +66,15 @@ export function requirePi(binary = process.env.PI_LIFECYCLE_BIN) {
       `which can re-resolve and install Pi over the network. ${launcher.detail}. Install Pi ${PI_VERSION} and ` +
       'set PI_LIFECYCLE_BIN to the concrete executable (`mise which pi`); tests never skip.');
   }
-  const target = binary.includes('/') ? resolve(binary) : binary;
+  if (!binary.includes('/')) {
+    throw new Error(`Lifecycle tests REQUIRE Pi ${PI_VERSION} at a concrete executable path, not the bare name ` +
+      `"${binary}", which would probe PATH and may run a launcher that installs Pi over the network. ` +
+      'Set PI_LIFECYCLE_BIN to the path reported by `command -v pi` or `mise which pi`; tests never skip.');
+  }
+  const target = resolve(binary);
   const probe = probeVersion(target);
   if (!probe.ok) {
-    throw new Error(`Lifecycle tests REQUIRE Pi ${PI_VERSION} on PATH (or PI_LIFECYCLE_BIN). ` +
+    throw new Error(`Lifecycle tests REQUIRE Pi ${PI_VERSION} at the PI_LIFECYCLE_BIN executable. ` +
       `Install that exact version; tests never skip. Got: ${probe.detail}`);
   }
   if (probe.clean) return target;
