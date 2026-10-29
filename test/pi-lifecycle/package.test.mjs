@@ -8,6 +8,7 @@ const requests = (r, kind) => events(r, 'provider.request').filter(e => e.kind =
 for (const scenario of 'ABCDEFGHIJ') {
   test(`package ${scenario}: safe real-Pi lifecycle`, { timeout: 20000 }, async () => {
     const r = await runScenario(binary, scenario, scenario === 'J' ? process.env.PI_LIFECYCLE_MUTATION : undefined, 'package');
+    assert.deepEqual(events(r, 'package.context_missing'), [], r.diagnostic);
     const guardrail = ['C', 'G'].includes(scenario);
     const handoff = !guardrail && !['F', 'I'].includes(scenario);
     if (!guardrail) assertToolIntact(r);

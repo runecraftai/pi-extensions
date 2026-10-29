@@ -218,6 +218,8 @@ function storeReadyResult(state: RuntimeState, snapshot: Snapshot, result: Compa
 			...result,
 			details: {
 				...piDetails,
+				// Protocol key kept for interoperability: details.asyncPrefixCompaction is persisted on
+				// compaction results so other consumers and Pi lifecycle hooks can detect the handoff.
 				asyncPrefixCompaction: {
 					adapterId: state.adapterId,
 					jobId: snapshot.jobId,

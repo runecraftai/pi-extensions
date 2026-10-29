@@ -117,7 +117,9 @@ PI_LIFECYCLE_MUTATION=settings node --test --test-name-pattern='^D: ' test/pi-li
 ```
 
 The first invokes the real `ctx.abort()`, observes the tool's aborted signal,
-and fails with `Safety violation: ctx.abort() called`. The second resolves
-settings without the active model, observes `SETTINGS_CHANGED` and native
-fallback requests, and fails the ready-summary contract. Neither command
-loads upstream code or accesses a paid provider.
+and fails with `Safety violation: ctx.abort() called`. The second makes this
+package call the same real `ctx.abort()` on a ready summary and fails the same
+safety contract. The third resolves settings without the active model, observes
+`SETTINGS_CHANGED` and native fallback requests, and fails the ready-summary
+contract. None of these commands loads upstream code or accesses a paid
+provider.

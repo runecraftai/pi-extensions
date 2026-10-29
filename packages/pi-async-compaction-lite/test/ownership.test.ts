@@ -8,8 +8,23 @@ const root = new URL("../", import.meta.url);
 const forbidden = ["YWxtb2dkZXBheg==", "cGktYXN5bmMtY29tcGFjdGlvbg==", "YXN0cmE=", "Y2hhdGdwdC5jb20="]
   .map(value => Buffer.from(value, "base64").toString("utf8"));
 
-function owned(path: string, content: string) {
+// Protocol keys kept for interoperability: they name the mechanism rather than a vendor and are
+// read by existing consumers and Pi lifecycle hooks, so exactly these keys are exempt from the
+// identity guard. Author, vendor, repository, brand, product, and licence identity stays forbidden.
+const protocolKeys = [
+  "PI_ASYNC_PREFIX_COMPACTION_START_RATIO",
+  "PI_ASYNC_PREFIX_COMPACTION_TIMEOUT_MS",
+  "PI_ASYNC_PREFIX_COMPACTION",
+  "asyncPrefixCompaction",
+];
+
+function withoutProtocolKeys(content: string) {
   const text = content.toLowerCase().replaceAll("pi-async-compaction-lite", "");
+  return protocolKeys.reduce((result, key) => result.replaceAll(key.toLowerCase(), ""), text);
+}
+
+function owned(path: string, content: string) {
+  const text = withoutProtocolKeys(content);
   for (const identity of forbidden) {
     assert.equal(text.includes(identity), false, `Unowned identity or remote mode in distributable ${path}`);
   }
@@ -41,6 +56,27 @@ test("identity guard rejects an upstream name in output, imports, and support li
   for (const name of forbidden) {
     for (const surface of [`console.warn("${name}")`, `import "${name}"`, `https://example.invalid/${name}`]) {
       assert.throws(() => owned("source.ts", surface), /Unowned identity or remote mode/);
+    }
+  }
+});
+
+test("identity guard allows the exact neutral protocol keys", () => {
+  for (const key of protocolKeys) {
+    for (const surface of [
+      `process.env.${key}`,
+      `details: { ${key}: { jobId } }`,
+      `pi.events.emit("runecraft:async-compaction", { ${key} })`,
+    ]) {
+      assert.doesNotThrow(() => owned("source.ts", surface), `${key} must stay allowed`);
+    }
+  }
+});
+
+test("identity guard still rejects vendor identity mixed with protocol keys", () => {
+  for (const key of protocolKeys) {
+    for (const name of forbidden) {
+      assert.throws(() => owned("source.ts", `${key}: "${name}"`), /Unowned identity or remote mode/);
+      assert.throws(() => owned("source.ts", `${name}_${key}`), /Unowned identity or remote mode/);
     }
   }
 });

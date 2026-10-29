@@ -46,13 +46,20 @@ export default function (pi) {
   let packagePending = false;
 
   if (usePackage) {
+    const observePackage = (event) => {
+      if (!packageContext) {
+        trace("package.context_missing", { event });
+        return {};
+      }
+      return { settings: settings(packageContext), idle: packageContext.isIdle() };
+    };
     pi.events.on("runecraft:async-compaction", (event) => {
       if (event.event === "started") {
         packagePending = true;
-        trace("summary.started", { settings: settings(packageContext), idle: packageContext.isIdle() });
+        trace("summary.started", observePackage("started"));
       } else if (event.event === "ready") {
-        trace("summary.ready", { idle: packageContext.isIdle() });
-        if (mutation === "abort") {
+        trace("summary.ready", observePackage("ready"));
+        if (mutation === "abort" && packageContext) {
           trace("ctx.abort");
           void packageContext.abort();
         }
@@ -70,10 +77,13 @@ export default function (pi) {
     asyncCompaction({
       ...pi,
       on(event, handler) {
-        return pi.on(event, (data, ctx) => handler(data, {
-          ...ctx,
-          abort() { trace("ctx.abort"); return ctx.abort(); },
-        }));
+        return pi.on(event, (data, ctx) => {
+          packageContext ??= ctx;
+          return handler(data, {
+            ...ctx,
+            abort() { trace("ctx.abort"); return ctx.abort(); },
+          });
+        });
       },
       registerCommand(name, command) {
         if (name === "async-compact-now") packageCommand = command.handler;

@@ -20,6 +20,8 @@ export interface JobCorrelation {
 	readonly promptVersion: string;
 }
 
+// Protocol key kept for interoperability: details.asyncPrefixCompaction is persisted on compaction
+// results so other consumers and Pi lifecycle hooks can detect the handoff.
 export interface AsyncCompactionDetails {
 	readonly asyncPrefixCompaction: AsyncCompactionMarker;
 	readonly readFiles?: readonly string[];

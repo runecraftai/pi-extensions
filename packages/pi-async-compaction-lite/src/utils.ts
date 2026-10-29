@@ -28,6 +28,8 @@ function readNumberSetting(name: string, defaultValue: number): number {
 	return Number.isFinite(parsed) ? parsed : defaultValue;
 }
 
+// Protocol keys kept for interoperability: the PI_ASYNC_PREFIX_COMPACTION* names describe the
+// mechanism rather than a vendor, and existing consumers and Pi lifecycle hooks read them.
 export function getStartRatio(): number {
 	return Math.max(0, Math.min(1, readNumberSetting("PI_ASYNC_PREFIX_COMPACTION_START_RATIO", DEFAULT_START_RATIO)));
 }
@@ -62,6 +64,8 @@ export function settingsKey(settings: ResolvedCompactionSettings): string {
 	});
 }
 
+// Protocol key kept for interoperability: details.asyncPrefixCompaction is persisted on compaction
+// results so other consumers and Pi lifecycle hooks can detect the handoff.
 export function getAsyncCompactionMarker(value: unknown): AsyncCompactionMarker | undefined {
 	if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
 	const marker = (value as Record<string, unknown>).asyncPrefixCompaction;
