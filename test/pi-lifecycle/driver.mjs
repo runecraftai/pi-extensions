@@ -155,6 +155,10 @@ export async function runScenario(binary, scenario, mutation) {
   const has = (event) => trace.some((record) => record.event === event);
   try {
     await until(() => has('fixture.loaded'));
+    const loaded = trace.find((record) => record.event === 'fixture.loaded');
+    // The fixture's modules must be the executable under test, not a resolved or hoisted copy.
+    assert.deepEqual([loaded.piAiVersion, loaded.piCodingAgentVersion], [PI_VERSION, PI_VERSION],
+      `Fixture Pi modules are not Pi ${PI_VERSION}: ${JSON.stringify(loaded)}`);
     const historyRepeats = ['A', 'B', 'E'].includes(scenario) || mutation === 'abort' ? 4200 : 3500;
     await command('prompt', { message: `History: ${'history '.repeat(historyRepeats)}` });
     await until(() => has('agent_settled'));

@@ -80,7 +80,9 @@ function readyHandoff(result) {
   compaction(result, 'threshold', true);
   toolResult(result, false);
   const followup = records(result, 'provider.request').filter((record) => record.kind === 'agent').at(-1);
-  assert.equal(followup.messages.some((message) => message.text.includes('compacted into')), true);
+  const modelVisible = followup.messages.find((message) => message.role === 'user');
+  assert.equal(modelVisible.text.includes('Synthetic summary.'), true,
+    'Handed-off summary missing from the post-compaction model projection');
   // Prove tool-call/result pairing in the model-visible projection, not just raw history.
   for (const request of records(result, 'provider.request').filter((record) => record.kind === 'agent')) {
     const calls = request.messages.flatMap((message) => message.toolCalls);

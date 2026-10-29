@@ -1,6 +1,6 @@
 // Test-only policies, not an implementation or copy of pi-async-compaction.
-import { createAssistantMessageEventStream } from "@earendil-works/pi-ai";
-import { SettingsManager } from "@earendil-works/pi-coding-agent";
+import { createAssistantMessageEventStream, PI_AI_VERSION } from "@earendil-works/pi-ai";
+import { SettingsManager, VERSION as PI_CODING_AGENT_VERSION } from "@earendil-works/pi-coding-agent";
 import net from "node:net";
 import http from "node:http";
 import https from "node:https";
@@ -58,7 +58,7 @@ export default function (pi) {
       trace("provider.request", { kind, model: `${model.provider}/${model.id}`, messages: context.messages.map((message) => ({
         role: message.role, toolCallId: message.toolCallId,
         toolCalls: Array.isArray(message.content) ? message.content.filter((block) => block.type === "toolCall").map((block) => block.id) : [],
-        text: (typeof message.content === "string" ? message.content : JSON.stringify(message.content)).slice(0, 120),
+        text: (typeof message.content === "string" ? message.content : JSON.stringify(message.content)).slice(0, 4096),
       })) });
       void (async () => {
         const message = {
@@ -228,5 +228,7 @@ export default function (pi) {
     await applyJob;
     trace("fixture.drained");
   } });
-  pi.on("session_start", () => trace("fixture.loaded", { scenario }));
+  pi.on("session_start", () => trace("fixture.loaded", {
+    scenario, piAiVersion: PI_AI_VERSION, piCodingAgentVersion: PI_CODING_AGENT_VERSION,
+  }));
 }

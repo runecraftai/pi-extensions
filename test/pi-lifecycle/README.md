@@ -14,7 +14,11 @@ environment before spawning it, and asks mise's read-only `mise which pi` for
 the install it manages rather than executing an auto-installing `pi` launcher.
 Point `PI_LIFECYCLE_BIN` at the concrete executable (`mise which pi`) when no
 concrete target can be resolved.
-CI installs the pinned Pi CLI before running `npm test`.
+CI installs the pinned Pi CLI before running `npm test`. Pi resolves extension
+imports of `@earendil-works/pi-ai` and `@earendil-works/pi-coding-agent` to its
+own bundled modules, so the fixture uses the same `SettingsManager` and stream
+factory as Pi itself; each scenario asserts the loaded module versions equal the
+preflighted binary version instead of relying on a hoisted copy.
 
 ## What executes
 
