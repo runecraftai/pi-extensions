@@ -58,13 +58,29 @@ authenticate to any service. Scenario I also registers a keyless fake provider.
 
 ## Scope and scenario authority
 
-This slice does **not** install, vendor, or claim to validate the upstream
-package. The fixture contains small, explicitly test-only policies reproducing
-the recon's unsafe abort/apply/resume behavior, safe threshold handoff, busy
-observer, guardrail, and resilience interaction. These are not the full Squad
-extensions. S2 must connect the adapted implementation to these contracts;
-external Squad integration belongs to later slices. Synthetic summaries prove
+`lifecycle.test.mjs` retains small, test-only policies reproducing the recon's
+unsafe abort/apply/resume behavior, safe threshold handoff, busy observer,
+guardrail, and resilience interaction. `package.test.mjs` runs A–J again with the
+real `@runecraft/pi-async-compaction-lite` entrypoint, job state machine,
+preparation, validation, settings resolver, and registry-backed summary path.
+Neither suite loads the third-party package or the full Squad extensions.
+External Squad integration belongs to later slices. Synthetic summaries prove
 lifecycle mechanics, not summary fidelity.
+
+For package runs, A/B/E now preserve the tool and perform native threshold
+handoff, without an async continuation. H also uses native handoff rather than
+the baseline actionable-boundary prototype; resilience remains a separate
+policy. I injects a background provider failure through the fake transport and
+proves native fallback. D asserts model budgets at preparation and at the native
+hook, with zero synchronous fallback calls. The package emits its own `busy`
+event on each handoff, independently of the threshold-only observer.
+
+The harness invokes the registered `/async-compact-now` handler when the tool
+starts, then releases the real summary request mid-tool. It sets the automatic
+start ratio to 0.95 to avoid a job during history seeding. Automatic starts,
+idle application, pending messages, invalidation, and timeouts have retained
+package unit coverage. All calls use the real package; no production summary,
+settings, or handoff implementation is replaced.
 
 Authority: the approved `recon-squad-async-compaction-2/report.md`, sections 2,
 3, 6, and Appendix A. Its appendix omits D. The accepted clarification assigns
@@ -96,6 +112,7 @@ also make the positive contracts fail, with a nonzero exit status:
 
 ```sh
 PI_LIFECYCLE_MUTATION=abort node --test --test-name-pattern='^J: ' test/pi-lifecycle/lifecycle.test.mjs
+PI_LIFECYCLE_MUTATION=abort node --test --test-name-pattern='^package J:' test/pi-lifecycle/package.test.mjs
 PI_LIFECYCLE_MUTATION=settings node --test --test-name-pattern='^D: ' test/pi-lifecycle/lifecycle.test.mjs
 ```
 

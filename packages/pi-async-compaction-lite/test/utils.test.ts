@@ -1,16 +1,16 @@
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { describe, expect, test } from "bun:test";
+import { join, resolve } from "node:path";
+import { describe, test } from "node:test";
+import { expect } from "expect";
 import type { ExtensionContext, SessionEntry } from "@earendil-works/pi-coding-agent";
-import { getAsyncCompactionMarker, getCompactionSettings, getRetrySettings, getThinkingLevel } from "../src/utils";
-import { ownAsyncMarker } from "./test-fixtures";
+import { getAsyncCompactionMarker, getCompactionSettings, getRetrySettings, getThinkingLevel } from "../src/utils.ts";
+import { ownAsyncMarker } from "./test-fixtures.ts";
 
 const timestamp = "2026-08-12T00:00:00.000Z";
 
 describe("Pi settings", () => {
 	test("ignores project compaction and retry settings when the project is untrusted", async () => {
-		const root = await mkdtemp(join(tmpdir(), "pi-compaction-retry-settings-"));
+		const root = await mkdtemp(resolve(".pi-compaction-settings-"));
 		const agentDir = join(root, "agent");
 		const cwd = join(root, "project");
 		const projectSettingsDir = join(cwd, ".pi");

@@ -1,8 +1,9 @@
-import { describe, expect, test } from "bun:test";
+import { describe, test } from "node:test";
+import { expect } from "expect";
 import type { SessionEntry } from "@earendil-works/pi-coding-agent";
 import { compact } from "@earendil-works/pi-coding-agent";
-import { prepareAsyncCompaction } from "../src/preparation";
-import { estimateContextUsageTokens } from "../src/utils";
+import { prepareAsyncCompaction } from "../src/preparation.ts";
+import { estimateContextUsageTokens } from "../src/utils.ts";
 import {
 	assistantEntry,
 	assistantToolEntry,
@@ -11,13 +12,11 @@ import {
 	estimatePiContextTokens,
 	expectAsyncPreparationToMatchPi,
 	preparePiCompaction,
-	realLongEdcEntries,
+	generatedLongEntries,
 	settings,
 	testModel,
 	userEntry,
-} from "./test-fixtures";
-
-const explicitRealParityTest = process.env.PI_RUN_REAL_COMPACTION_PARITY === "1" ? test : test.skip;
+} from "./test-fixtures.ts";
 
 describe("Pi preparation parity sentinels", () => {
 	test("matches Pi's normal preparation shape", () => {
@@ -73,8 +72,8 @@ describe("Pi preparation parity sentinels", () => {
 		expect(estimateContextUsageTokens(messages)).toBe(estimatePiContextTokens(messages).tokens);
 	});
 
-	explicitRealParityTest("produces the same deterministic compaction result as Pi for a real long edc conversation", async () => {
-		const entries = realLongEdcEntries();
+	test("produces the same deterministic compaction result as Pi for a synthetic long conversation", async () => {
+		const entries = generatedLongEntries();
 		const contextWindow = 400_000;
 		const maxRecordedTokens = Math.max(
 			...entries.map((entry) =>

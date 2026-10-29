@@ -1,16 +1,17 @@
-import { expect } from "bun:test";
+import { expect } from "expect";
 import { createAssistantMessageEventStream } from "@earendil-works/pi-ai";
 import type { SessionEntry } from "@earendil-works/pi-coding-agent";
 import { compact } from "@earendil-works/pi-coding-agent";
 // test-only parity sentinel: Pi does not publicly export prepareCompaction/estimateContextTokens.
 // if this private path breaks, update the sentinel or switch to a public export.
-import {
-	estimateContextTokens as estimatePiContextTokens,
-	prepareCompaction as preparePiCompaction,
-} from "../node_modules/@earendil-works/pi-coding-agent/dist/core/compaction/compaction.js";
-import { prepareAsyncCompaction } from "../src/preparation";
-import { timestamp } from "./entry-fixtures";
-import { settings } from "./context-fixtures";
+const { estimateContextTokens: estimatePiContextTokens, prepareCompaction: preparePiCompaction } =
+	await import(new URL("./core/compaction/compaction.js", import.meta.resolve("@earendil-works/pi-coding-agent")).href) as {
+		estimateContextTokens: (messages: Parameters<typeof import("../src/utils.ts").estimateContextUsageTokens>[0]) => { tokens: number };
+		prepareCompaction: (entries: SessionEntry[], settings: typeof import("./context-fixtures.ts").settings) => import("../src/types.ts").LocalCompactionPreparation | undefined;
+	};
+import { prepareAsyncCompaction } from "../src/preparation.ts";
+import { timestamp } from "./entry-fixtures.ts";
+import { settings } from "./context-fixtures.ts";
 
 export { estimatePiContextTokens, preparePiCompaction };
 

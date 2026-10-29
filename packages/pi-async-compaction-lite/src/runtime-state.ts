@@ -1,7 +1,7 @@
-import { BUILTIN_ADAPTER_ID, BUILTIN_ADAPTER_LABEL, EXTENSION_NAME, InvalidationReason } from "./constants";
-import { emitLifecycleEvent, getLifecycleDurationMs } from "./diagnostics";
-import type { AsyncCompactionLifecycleObserver } from "./diagnostics";
-import type { RuntimeState } from "./types";
+import { BUILTIN_ADAPTER_ID, BUILTIN_ADAPTER_LABEL, EXTENSION_NAME, InvalidationReason } from "./constants.ts";
+import { emitLifecycleEvent, getLifecycleDurationMs } from "./diagnostics.ts";
+import type { AsyncCompactionLifecycleObserver } from "./diagnostics.ts";
+import type { RuntimeState } from "./types.ts";
 
 export function createRuntimeState(
 	adapterId = BUILTIN_ADAPTER_ID,
@@ -20,7 +20,6 @@ export function createRuntimeState(
 		jobCounter: 0,
 		applyInFlight: undefined,
 		lastHandedOff: undefined,
-		autoResumeAfterCompaction: undefined,
 		lifecycleObserver,
 		lifecycleStartedAtMs: undefined,
 	};
@@ -54,7 +53,6 @@ export function markStale(state: RuntimeState, reason: InvalidationReason): void
 	state.reason = reason;
 	state.applyInFlight = undefined;
 	state.lastHandedOff = undefined;
-	state.autoResumeAfterCompaction = undefined;
 	state.lifecycleStartedAtMs = undefined;
 }
 

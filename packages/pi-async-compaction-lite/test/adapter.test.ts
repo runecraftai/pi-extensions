@@ -1,9 +1,10 @@
-import { describe, expect, test } from "bun:test";
-import type { AsyncCompactionAdapter } from "../src/adapter";
-import { startAsyncJobWithDeps } from "../src/job";
-import { createRuntimeState } from "../src/runtime-state";
-import type { LocalCompactionPreparation } from "../src/types";
-import { asyncJobContext, asyncJobDeps, compactableEntries, settings } from "./test-fixtures";
+import { describe, test } from "node:test";
+import { expect } from "expect";
+import type { AsyncCompactionAdapter } from "../src/adapter.ts";
+import { startAsyncJobWithDeps } from "../src/job.ts";
+import { createRuntimeState } from "../src/runtime-state.ts";
+import type { LocalCompactionPreparation } from "../src/types.ts";
+import { asyncJobContext, asyncJobDeps, compactableEntries, settings } from "./test-fixtures.ts";
 
 describe("internal async compaction adapter seam", () => {
 	test("startAsyncJob delegates prepare, run, and result conversion to the configured adapter", async () => {
@@ -69,7 +70,7 @@ describe("internal async compaction adapter seam", () => {
 		expect(state.ready?.result.summary).toBe("adapter summary");
 		expect(state.ready?.result.details?.asyncPrefixCompaction).toMatchObject({
 			adapterId: "test-adapter",
-			jobId: "async-prefix-compaction:test-adapter:1",
+			jobId: "runecraft-async-compaction:test-adapter:1",
 			promptVersion: "test-prompt-v1",
 		});
 	});

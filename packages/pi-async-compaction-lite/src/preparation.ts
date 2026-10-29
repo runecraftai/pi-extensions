@@ -1,8 +1,8 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { SessionEntry } from "@earendil-works/pi-coding-agent";
 import { buildSessionContext, findCutPoint, getLatestCompactionEntry } from "@earendil-works/pi-coding-agent";
-import type { FileOperations, LocalCompactionPreparation, ResolvedCompactionSettings } from "./types";
-import { estimateContextUsageTokens, getAsyncCompactionMarker, getStringArrayProperty } from "./utils";
+import type { FileOperations, LocalCompactionPreparation, ResolvedCompactionSettings } from "./types.ts";
+import { estimateContextUsageTokens, getAsyncCompactionMarker, getStringArrayProperty } from "./utils.ts";
 
 function createFileOps(): FileOperations {
 	return {
@@ -65,6 +65,10 @@ export function prepareAsyncCompaction(
 	if (pathEntries.length > 0 && pathEntries[pathEntries.length - 1]?.type === "compaction") {
 		return undefined;
 	}
+
+	// Pi 1.4 context edits change the projected prefix. Let native preparation
+	// handle edited histories instead of summarizing their raw, superseded text.
+	if (pathEntries.some((entry) => entry.type === "context_edit")) return undefined;
 
 	const latestCompaction = getLatestCompactionEntry([...pathEntries]);
 	let previousSummary: string | undefined;

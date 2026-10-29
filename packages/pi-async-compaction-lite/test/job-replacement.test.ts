@@ -1,17 +1,18 @@
-import { describe, expect, test } from "bun:test";
+import { describe, test } from "node:test";
+import { expect } from "expect";
 import type { CompactionResult } from "@earendil-works/pi-coding-agent";
-import { startAsyncJobWithDeps } from "../src/job";
-import { createRuntimeState } from "../src/runtime-state";
-import type { AsyncCompactionLifecycleEvent } from "../src/core";
-import { settingsKey } from "../src/utils";
-import { assistantEntry, asyncJobContext, asyncJobDeps, compactableEntries, readyJob, settings, userEntry } from "./test-fixtures";
+import { startAsyncJobWithDeps } from "../src/job.ts";
+import { createRuntimeState } from "../src/runtime-state.ts";
+import type { AsyncCompactionLifecycleEvent } from "../src/core.ts";
+import { settingsKey } from "../src/utils.ts";
+import { assistantEntry, asyncJobContext, asyncJobDeps, compactableEntries, readyJob, settings, userEntry } from "./test-fixtures.ts";
 
 describe("startAsyncJob lifecycle", () => {
 	test("replaces an unchanged-leaf ready job when settings drift", () => {
 		const events: AsyncCompactionLifecycleEvent[] = [];
 		const state = createRuntimeState(undefined, undefined, (event) => events.push(event));
 		state.status = "ready";
-		state.jobId = "async-prefix-compaction-1";
+		state.jobId = "runecraft-async-compaction-1";
 		state.jobCounter = 1;
 		state.ready = readyJob({ snapshotLeafId: "u2" });
 		const changedSettings = { ...settings, reserveTokens: 101 };
@@ -28,7 +29,7 @@ describe("startAsyncJob lifecycle", () => {
 
 		expect(outcome).toBe("started");
 		expect(String(state.status)).toBe("pending");
-		expect(state.jobId).toBe("async-prefix-compaction:builtin-pi-compaction:2");
+		expect(state.jobId).toBe("runecraft-async-compaction:builtin-pi-compaction:2");
 		expect(events).toContainEqual(expect.objectContaining({
 			event: "invalidated",
 			reason: "settings_changed",
@@ -39,7 +40,7 @@ describe("startAsyncJob lifecycle", () => {
 	test("replaces a ready job when the current branch no longer contains its snapshot boundary", () => {
 		const state = createRuntimeState();
 		state.status = "ready";
-		state.jobId = "async-prefix-compaction-1";
+		state.jobId = "runecraft-async-compaction-1";
 		state.jobCounter = 1;
 		state.ready = readyJob();
 		const unrelatedBranch = [
@@ -57,18 +58,18 @@ describe("startAsyncJob lifecycle", () => {
 
 		expect(outcome).toBe("started");
 		expect(String(state.status)).toBe("pending");
-		expect(state.jobId).toBe("async-prefix-compaction:builtin-pi-compaction:2");
+		expect(state.jobId).toBe("runecraft-async-compaction:builtin-pi-compaction:2");
 		expect(state.ready).toBeUndefined();
 	});
 
 	test("replaces a ready job when appended tail makes it too large", () => {
 		const state = createRuntimeState();
 		state.status = "ready";
-		state.jobId = "async-prefix-compaction-1";
+		state.jobId = "runecraft-async-compaction-1";
 		state.jobCounter = 1;
 		state.ready = {
 			adapterId: "builtin-pi-compaction",
-			jobId: "async-prefix-compaction-1",
+			jobId: "runecraft-async-compaction-1",
 			sessionId: "session-1",
 			snapshotLeafId: "a1",
 			firstKeptEntryId: "u2",
@@ -85,7 +86,7 @@ describe("startAsyncJob lifecycle", () => {
 					modifiedFiles: [],
 					asyncPrefixCompaction: {
 						adapterId: "builtin-pi-compaction",
-						jobId: "async-prefix-compaction-1",
+						jobId: "runecraft-async-compaction-1",
 						snapshotLeafId: "a1",
 						modelKey: "openai/test-model",
 						thinkingLevel: "off",
@@ -105,7 +106,7 @@ describe("startAsyncJob lifecycle", () => {
 		);
 
 		expect(String(state.status)).toBe("pending");
-		expect(state.jobId).toBe("async-prefix-compaction:builtin-pi-compaction:2");
+		expect(state.jobId).toBe("runecraft-async-compaction:builtin-pi-compaction:2");
 		expect(state.ready).toBeUndefined();
 	});
 });

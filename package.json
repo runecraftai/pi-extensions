@@ -10,7 +10,9 @@
   "scripts": {
     "test": "node --experimental-transform-types --test packages/*/test/**/*.test.ts test/pi-lifecycle/*.test.mjs",
     "test:lifecycle": "node --test test/pi-lifecycle/*.test.mjs",
-    "typecheck": "tsc --noEmit && npm run typecheck --workspace=@runecraft/pi-polish",
+    "typecheck": "tsc --noEmit && npm run typecheck --workspace=@runecraft/pi-polish && npm run typecheck --workspace=@runecraft/pi-async-compaction-lite",
+    "build": "npm run build --workspace=@runecraft/pi-async-compaction-lite",
+    "lint": "npm run lint --workspace=@runecraft/pi-async-compaction-lite",
     "test:release": "node --test test/release-config.test.mjs",
     "changeset:version": "changeset version",
     "publish:packages": "node scripts/publish-packages.mjs"

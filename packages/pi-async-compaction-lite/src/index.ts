@@ -1,8 +1,8 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { createBuiltinPiCompactionAdapter } from "./adapter";
-import { registerAsyncCompaction } from "./core";
-import type { AsyncCompactionCoreDependencies } from "./core";
-import { buildAsyncCompactionResult } from "./job";
+import { createBuiltinPiCompactionAdapter } from "./adapter.ts";
+import { registerAsyncCompaction } from "./core.ts";
+import type { AsyncCompactionCoreDependencies } from "./core.ts";
+import { buildAsyncCompactionResult } from "./job.ts";
 
 export default function asyncPrefixCompaction(
 	pi: ExtensionAPI,

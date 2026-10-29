@@ -1,9 +1,10 @@
-import { describe, expect, test } from "bun:test";
+import { describe, test } from "node:test";
+import { expect } from "expect";
 import type { CompactionResult } from "@earendil-works/pi-coding-agent";
-import { InvalidationReason } from "../src/constants";
-import { startAsyncJobWithDeps } from "../src/job";
-import { createRuntimeState } from "../src/runtime-state";
-import { asyncJobContext, asyncJobDeps, compactableEntries } from "./test-fixtures";
+import { InvalidationReason } from "../src/constants.ts";
+import { startAsyncJobWithDeps } from "../src/job.ts";
+import { createRuntimeState } from "../src/runtime-state.ts";
+import { asyncJobContext, asyncJobDeps, compactableEntries } from "./test-fixtures.ts";
 
 function asyncJobDepsWithCapturedTimeout(overrides: Partial<Parameters<typeof startAsyncJobWithDeps>[2]> = {}): {
 	readonly deps: Parameters<typeof startAsyncJobWithDeps>[2];

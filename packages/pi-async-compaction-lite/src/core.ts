@@ -1,14 +1,14 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import type { AsyncCompactionAdapter } from "./adapter";
-import { AUTO_RESUME_PROMPT, InvalidationReason } from "./constants";
-import { emitLifecycleEvent, getLifecycleDurationMs } from "./diagnostics";
-import { applyReadyCompaction, recordApplyError, startAsyncJob } from "./job";
-import type { StartAsyncJobOutcome } from "./job";
-import { createRuntimeState, getStatusKey, markStale } from "./runtime-state";
-import type { AsyncCompactionMarker, JobCorrelation, RuntimeState } from "./types";
-import { getAsyncCompactionMarker } from "./utils";
-import { validateReadyJob } from "./validation";
-import { isAstraRemoteMode, isAstraRemoteModel } from "./astra/activation";
+import type { AsyncCompactionAdapter } from "./adapter.ts";
+import { InvalidationReason } from "./constants.ts";
+import { emitLifecycleEvent, getLifecycleDurationMs } from "./diagnostics.ts";
+import { applyReadyCompaction, recordApplyError, startAsyncJob } from "./job.ts";
+import type { StartAsyncJobOutcome } from "./job.ts";
+import { createRuntimeState, getStatusKey, markStale } from "./runtime-state.ts";
+import type { AsyncCompactionMarker, JobCorrelation, RuntimeState } from "./types.ts";
+import { getAsyncCompactionMarker } from "./utils.ts";
+import { validateReadyJob } from "./validation.ts";
+import { assertSupportedPi } from "./version.ts";
 
 export type {
 	AdapterCompactionInput,
@@ -16,14 +16,14 @@ export type {
 	AdapterRunInput,
 	AdapterSnapshotInput,
 	AsyncCompactionAdapter,
-} from "./adapter";
-export type { AsyncCompactionLifecycleEvent, AsyncCompactionLifecycleObserver, AsyncCompactionWastedWork } from "./diagnostics";
-export type { Snapshot } from "./types";
+} from "./adapter.ts";
+export type { AsyncCompactionLifecycleEvent, AsyncCompactionLifecycleObserver, AsyncCompactionWastedWork } from "./diagnostics.ts";
+export type { Snapshot } from "./types.ts";
 
 export interface RegisterAsyncCompactionOptions {
 	readonly commandName?: string | false;
 	readonly commandDescription?: string;
-	readonly onLifecycleEvent?: import("./diagnostics").AsyncCompactionLifecycleObserver;
+	readonly onLifecycleEvent?: import("./diagnostics.ts").AsyncCompactionLifecycleObserver;
 }
 
 export interface AsyncCompactionCoreDependencies {
@@ -106,23 +106,21 @@ export function registerAsyncCompaction<TPrepared, TResult>(
 	options: RegisterAsyncCompactionOptions = {},
 	injectedDeps: Partial<AsyncCompactionCoreDependencies> = {},
 ): void {
+	assertSupportedPi();
 	const jobAdapter = eraseAdapter(adapter);
 	validateAdapterRegistration(pi, jobAdapter);
 	const deps = { ...defaultCoreDependencies, ...injectedDeps };
-	const state = createRuntimeState(adapter.id, adapter.label, options.onLifecycleEvent);
-	const isRemoteContextSession = (ctx: ExtensionContext): boolean =>
-		isAstraRemoteModel(ctx.model) && isAstraRemoteMode(ctx.sessionManager.getEntries());
+	const state = createRuntimeState(adapter.id, adapter.label, (event) => {
+		pi.events.emit("runecraft:async-compaction", event);
+		options.onLifecycleEvent?.(event);
+	});
 
 	pi.on("turn_end", (_event, ctx) => {
-		if (isRemoteContextSession(ctx)) {
-			invalidateActiveJob(ctx, state, InvalidationReason.SYNC_FALLBACK);
-			return;
-		}
 		deps.startAsyncJob(ctx, state, { adapter: jobAdapter, force: false });
 	});
 
 	pi.on("agent_settled", (_event, ctx) => {
-		if (!isRemoteContextSession(ctx) && !ctx.hasPendingMessages()) deps.applyReadyCompaction(ctx, state);
+		if (!ctx.hasPendingMessages()) deps.applyReadyCompaction(ctx, state);
 	});
 
 	pi.on("model_select", (_event, ctx) => {
@@ -138,10 +136,6 @@ export function registerAsyncCompaction<TPrepared, TResult>(
 	});
 
 	pi.on("session_before_compact", async (event, ctx) => {
-		if (isRemoteContextSession(ctx)) {
-			invalidateActiveJob(ctx, state, InvalidationReason.SYNC_FALLBACK);
-			return undefined;
-		}
 		const ready = state.ready;
 		if (!ready || state.status !== "ready") {
 			if (state.status === "pending") {
@@ -173,9 +167,13 @@ export function registerAsyncCompaction<TPrepared, TResult>(
 			jobId: ready.jobId,
 			durationMs: getLifecycleDurationMs(state.lifecycleStartedAtMs),
 		});
+		pi.events.emit("busy", {
+			state: "busy", activity: "compaction", source: "runecraft-async-compaction",
+			jobId: ready.jobId, reason: event.reason,
+		});
 		clearCliStatus(ctx, state);
 		collapseCompactionRender(ctx);
-		return { compaction: ready.result };
+		return { compaction: { ...ready.result, tokensBefore: event.preparation.tokensBefore } };
 	});
 
 	pi.on("session_compact", (event, ctx) => {
@@ -186,16 +184,9 @@ export function registerAsyncCompaction<TPrepared, TResult>(
 		if (!matchesJobCorrelation(state.lastHandedOff, correlation)) return;
 		state.lastHandedOff = undefined;
 		state.lifecycleStartedAtMs = undefined;
-		const shouldAutoResume = matchesJobCorrelation(state.autoResumeAfterCompaction, correlation);
-		if (shouldAutoResume) state.autoResumeAfterCompaction = undefined;
 		if (ctx.hasUI) {
 			const ui = ctx.ui;
 			setTimeout(() => ui.notify(`Applied ready ${state.adapterLabel}`, "info"), 0);
-		}
-		if (shouldAutoResume) {
-			setTimeout(() => {
-				if (!ctx.hasPendingMessages()) pi.sendUserMessage(AUTO_RESUME_PROMPT);
-			}, 0);
 		}
 	});
 

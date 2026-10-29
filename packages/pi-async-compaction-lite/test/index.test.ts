@@ -1,7 +1,8 @@
-import { describe, expect, test } from "bun:test";
+import { describe, test } from "node:test";
+import { expect } from "expect";
 import type { CompactionResult, ExtensionContext, SessionEntry } from "@earendil-works/pi-coding-agent";
 import { buildSessionContext } from "@earendil-works/pi-coding-agent";
-import { applyReadyCompaction, startAsyncJobWithDeps } from "../src/job";
+import { applyReadyCompaction, startAsyncJobWithDeps } from "../src/job.ts";
 import {
 	assistantEntry,
 	asyncJobContext,
@@ -9,15 +10,31 @@ import {
 	compactableEntries,
 	extensionHarness,
 	manualCommandContext,
-	ownAsyncMarker,
 	recordFromUnknown,
 	textBlocksFromMessage,
 	timestamp,
 	userEntry,
 	validationEvent,
-} from "./test-fixtures";
+} from "./test-fixtures.ts";
 
 describe("extension hooks", () => {
+	test("emits busy for a validated manual idle handoff without a continuation", async () => {
+		const { handlers, emittedEvents, sentUserMessages } = extensionHarness({
+			startAsyncJob: (ctx, state, options) => startAsyncJobWithDeps(ctx, state, asyncJobDeps(), { ...options, adapter: undefined, force: true }),
+		});
+		const ctx = asyncJobContext(compactableEntries());
+		handlers.get("turn_end")!({}, ctx);
+		await Promise.resolve();
+		const result = await handlers.get("session_before_compact")!(validationEvent(), ctx);
+		expect(result).toEqual({ compaction: expect.objectContaining({ summary: "async summary" }) });
+		expect(emittedEvents.filter(event => event.name === "busy")).toEqual([{
+			name: "busy", payload: {
+				state: "busy", activity: "compaction", source: "runecraft-async-compaction",
+				jobId: "runecraft-async-compaction:builtin-pi-compaction:1", reason: "manual",
+			},
+		}]);
+		expect(sentUserMessages).toEqual([]);
+	});
 	test("registers the manual command without a separate status command", () => {
 		const { commands } = extensionHarness();
 
@@ -94,7 +111,7 @@ describe("extension hooks", () => {
 				compactionEntry: {
 					details: {
 						asyncPrefixCompaction: {
-							jobId: "async-prefix-compaction:builtin-pi-compaction:1",
+							jobId: "runecraft-async-compaction:builtin-pi-compaction:1",
 							snapshotLeafId: "a1",
 							modelKey: "openai/test-model",
 							thinkingLevel: "off",
@@ -123,7 +140,7 @@ describe("extension hooks", () => {
 				compactionEntry: {
 					details: {
 						asyncPrefixCompaction: {
-							jobId: "async-prefix-compaction:builtin-pi-compaction:99",
+							jobId: "runecraft-async-compaction:builtin-pi-compaction:99",
 							snapshotLeafId: "a1",
 							modelKey: "openai/test-model",
 							thinkingLevel: "off",
@@ -175,7 +192,7 @@ describe("extension hooks", () => {
 		expect(compactTriggered).toBe(1);
 	});
 
-	test("auto-resumes after a force-stopped async compaction is applied", async () => {
+	test("never aborts or auto-resumes after native handoff", async () => {
 		const deps = asyncJobDeps({ triggerCompaction: (jobCtx) => jobCtx.compact() });
 		const { handlers, notifyMessages, sentUserMessages, ctx } = extensionHarness({
 			applyReadyCompaction: (jobCtx, state) => applyReadyCompaction(jobCtx, state, deps),
@@ -201,8 +218,8 @@ describe("extension hooks", () => {
 			compact: () => compactTriggered++,
 		} as ExtensionContext);
 		await Promise.resolve();
-		expect(abortCalls).toBe(1);
-		expect(compactTriggered).toBe(1);
+		expect(abortCalls).toBe(0);
+		expect(compactTriggered).toBe(0);
 
 		const handoff = await beforeCompactHandler(validationEvent(), {
 			...asyncJobContext(entries),
@@ -224,7 +241,7 @@ describe("extension hooks", () => {
 
 		await new Promise((resolve) => setTimeout(resolve, 0));
 		expect(notifyMessages).toEqual(["Applied ready built-in Pi compaction"]);
-		expect(sentUserMessages).toEqual(["continue"]);
+		expect(sentUserMessages).toEqual([]);
 	});
 
 	test("does not auto-resume when user input arrives before deferred resume", async () => {

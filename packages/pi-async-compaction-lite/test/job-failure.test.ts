@@ -1,9 +1,10 @@
-import { describe, expect, test } from "bun:test";
-import { InvalidationReason } from "../src/constants";
-import { startAsyncJobWithDeps } from "../src/job";
-import { createRuntimeState } from "../src/runtime-state";
-import type { AsyncCompactionLifecycleEvent } from "../src/core";
-import { asyncJobContext, asyncJobDeps, compactableEntries } from "./test-fixtures";
+import { describe, test } from "node:test";
+import { expect } from "expect";
+import { InvalidationReason } from "../src/constants.ts";
+import { startAsyncJobWithDeps } from "../src/job.ts";
+import { createRuntimeState } from "../src/runtime-state.ts";
+import type { AsyncCompactionLifecycleEvent } from "../src/core.ts";
+import { asyncJobContext, asyncJobDeps, compactableEntries } from "./test-fixtures.ts";
 
 describe("startAsyncJob lifecycle", () => {
 	test("records apply failures reported by Pi compaction", async () => {
@@ -40,7 +41,7 @@ describe("startAsyncJob lifecycle", () => {
 		await Promise.resolve();
 
 		expect(state.status).toBe("ready");
-		expect(state.jobId).toBe("async-prefix-compaction:builtin-pi-compaction:1");
+		expect(state.jobId).toBe("runecraft-async-compaction:builtin-pi-compaction:1");
 		state.status = "idle";
 		state.ready = undefined;
 		state.reason = undefined;

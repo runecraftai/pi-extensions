@@ -1,16 +1,25 @@
-import { describe, expect, test } from "bun:test";
+import { describe, test } from "node:test";
+import { expect } from "expect";
 import type { SessionEntry } from "@earendil-works/pi-coding-agent";
-import { prepareAsyncCompaction } from "../src/preparation";
+import { prepareAsyncCompaction } from "../src/preparation.ts";
 import {
 	assistantEntry,
 	assistantToolEntry,
 	compactionEntry,
 	ownAsyncMarker,
 	settings,
+	timestamp,
 	userEntry,
-} from "./test-fixtures";
+} from "./test-fixtures.ts";
 
 describe("prepareAsyncCompaction", () => {
+	test("leaves context-edited histories to native compaction", () => {
+		const entries = [userEntry("u1", null, "superseded text"), assistantEntry("a1", "u1", "answer")];
+		expect(prepareAsyncCompaction([...entries, {
+			type: "context_edit", id: "edit1", parentId: "a1", timestamp,
+			targetId: "u1", replacement: null,
+		}], { enabled: true, reserveTokens: 100, keepRecentTokens: 1 })).toBeUndefined();
+	});
 	test("inherits file operations from previous async compactions created by this extension", () => {
 		const entries: SessionEntry[] = [
 			userEntry("u1", null, "kept from previous compaction"),

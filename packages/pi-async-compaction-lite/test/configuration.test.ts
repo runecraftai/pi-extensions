@@ -1,5 +1,6 @@
-import { describe, expect, test } from "bun:test";
-import { getStartRatio, getTimeoutMs, isEnabled } from "../src/utils";
+import { describe, test } from "node:test";
+import { expect } from "expect";
+import { getStartRatio, getTimeoutMs, isEnabled } from "../src/utils.ts";
 
 describe("configuration helpers", () => {
 	test("uses defaults for missing and invalid numeric settings", () => {
@@ -34,10 +35,10 @@ describe("configuration helpers", () => {
 
 	test("only literal zero disables async compaction", () => {
 		withEnvironment("PI_ASYNC_PREFIX_COMPACTION", "0", () => {
-			expect(isEnabled()).toBeFalse();
+			expect(isEnabled()).toBe(false);
 		});
 		withEnvironment("PI_ASYNC_PREFIX_COMPACTION", "false", () => {
-			expect(isEnabled()).toBeTrue();
+			expect(isEnabled()).toBe(true);
 		});
 	});
 });

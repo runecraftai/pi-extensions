@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import type { SessionEntry, SessionMessageEntry } from "@earendil-works/pi-coding-agent";
 
 export const timestamp = "2026-06-30T00:00:00.000Z";
@@ -103,14 +102,11 @@ export function compactableEntries(): SessionEntry[] {
 	];
 }
 
-export function realLongEdcEntries(): SessionEntry[] {
-	const fixtureUrl = new URL("../test-fixtures/edc-real-long-session.jsonl", import.meta.url);
-	return readFileSync(fixtureUrl, "utf8")
-		.split("\n")
-		.filter(Boolean)
-		.map((line) => JSON.parse(line) as unknown)
-		.filter((entry): entry is SessionEntry => {
-			if (!entry || typeof entry !== "object" || Array.isArray(entry)) return false;
-			return (entry as Record<string, unknown>).type !== "session";
-		});
+export function generatedLongEntries(): SessionEntry[] {
+	return [
+		userEntry("long-user", null, "Synthetic long task ".repeat(20_000)),
+		assistantEntry("long-answer", "long-user", "Synthetic answer ".repeat(10_000), 240_000),
+		userEntry("tail-user", "long-answer", "Recent task"),
+		assistantEntry("tail-answer", "tail-user", "Recent answer"),
+	];
 }

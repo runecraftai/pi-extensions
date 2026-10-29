@@ -1,10 +1,9 @@
-export const EXTENSION_NAME = "async-prefix-compaction";
+export const EXTENSION_NAME = "runecraft-async-compaction";
 export const BUILTIN_ADAPTER_ID = "builtin-pi-compaction";
 export const BUILTIN_ADAPTER_LABEL = "built-in Pi compaction";
 export const SUMMARY_PROMPT_VERSION = "pi-compact-background-v1";
 export const DEFAULT_START_RATIO = 0.8;
 export const DEFAULT_TIMEOUT_MS = 300_000;
-export const AUTO_RESUME_PROMPT = "continue";
 
 export const InvalidationReason = {
 	FIRST_KEPT_MISSING: "first_kept_missing",
@@ -17,6 +16,7 @@ export const InvalidationReason = {
 	THINKING_CHANGED: "thinking_changed",
 	SETTINGS_CHANGED: "settings_changed",
 	CUSTOM_INSTRUCTIONS: "custom_instructions",
+	CONTEXT_EDITED: "context_edited",
 	TOO_LARGE: "too_large",
 	SUPERSEDED: "superseded",
 	SYNC_FALLBACK: "sync_fallback",

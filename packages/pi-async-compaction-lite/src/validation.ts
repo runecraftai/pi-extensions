@@ -1,8 +1,8 @@
 import type { ExtensionContext, SessionBeforeCompactEvent, SessionEntry } from "@earendil-works/pi-coding-agent";
 import { buildSessionContext } from "@earendil-works/pi-coding-agent";
-import { InvalidationReason } from "./constants";
-import type { ReadyJob, ResolvedCompactionSettings } from "./types";
-import { estimateMessagesTokens, getThinkingLevel, isToolResultEntry, modelKey, settingsKey } from "./utils";
+import { InvalidationReason } from "./constants.ts";
+import type { ReadyJob, ResolvedCompactionSettings } from "./types.ts";
+import { estimateMessagesTokens, getThinkingLevel, isToolResultEntry, modelKey, settingsKey } from "./utils.ts";
 
 function buildPreviewCompactionEntry(job: ReadyJob, currentPath: readonly SessionEntry[]): SessionEntry {
 	return {
@@ -41,6 +41,9 @@ export function getReadyJobContextInvalidationReason(
 	}
 
 	const currentPath = ctx.sessionManager.getBranch();
+	if (currentPath.some((entry) => entry.type === "context_edit")) {
+		return InvalidationReason.CONTEXT_EDITED;
+	}
 	if (job.thinkingLevel !== getThinkingLevel(currentPath)) {
 		return InvalidationReason.THINKING_CHANGED;
 	}

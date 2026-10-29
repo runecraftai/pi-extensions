@@ -1,8 +1,16 @@
-import { describe, expect, test } from "bun:test";
-import { validateReadyJob } from "../src/validation";
-import { assistantEntry, readyJob, userEntry, validationContext, validationEvent } from "./test-fixtures";
+import { describe, test } from "node:test";
+import { expect } from "expect";
+import { validateReadyJob } from "../src/validation.ts";
+import { assistantEntry, readyJob, userEntry, validationContext, validationEvent } from "./test-fixtures.ts";
 
 describe("validateReadyJob", () => {
+	test("rejects a snapshot when context is edited while its summary runs", () => {
+		const entries = validEntries();
+		expect(validateReadyJob(readyJob(), validationEvent(), validationContext([...entries, {
+			type: "context_edit", id: "edit1", parentId: "a2", timestamp: entries[0]!.timestamp,
+			targetId: "u1", replacement: null,
+		}]))).toBe("context_edited");
+	});
 	test("accepts a ready job when the snapshot leaf and raw tail are still on the current branch", () => {
 		const entries = [
 			userEntry("u1", null, "old prefix"),
@@ -53,7 +61,7 @@ describe("validateReadyJob", () => {
 		expect(validateReadyJob(job, validationEvent(), validationContext(entries))).toBe("first_kept_mismatch");
 	});
 
-	test.each([
+	for (const [description, job, event, ctx, reason] of [
 		["session changes", readyJob({ sessionId: "other-session" }), validationEvent(), validationContext(validEntries()), "session_changed"],
 		["model changes", readyJob({ modelKey: "other/model" }), validationEvent(), validationContext(validEntries()), "model_changed"],
 		[
@@ -85,7 +93,7 @@ describe("validateReadyJob", () => {
 			validationContext(validEntries()),
 			"first_kept_after_snapshot",
 		],
-	] as const)("rejects ready jobs when %s", (_description, job, event, ctx, reason) => {
+	] as const) test(`rejects ready jobs when ${description}`, () => {
 		expect(validateReadyJob(job, event, ctx)).toBe(reason);
 	});
 });

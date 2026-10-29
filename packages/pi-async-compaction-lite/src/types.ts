@@ -1,8 +1,8 @@
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import type { CompactionResult, SettingsManager } from "@earendil-works/pi-coding-agent";
-import type { InvalidationReason, JobStatus } from "./constants";
-import type { AsyncCompactionLifecycleObserver } from "./diagnostics";
+import type { InvalidationReason, JobStatus } from "./constants.ts";
+import type { AsyncCompactionLifecycleObserver } from "./diagnostics.ts";
 
 export interface AsyncCompactionMarker {
 	readonly adapterId: string;
@@ -73,7 +73,6 @@ export interface RuntimeState {
 	jobCounter: number;
 	applyInFlight: JobCorrelation | undefined;
 	lastHandedOff: JobCorrelation | undefined;
-	autoResumeAfterCompaction: JobCorrelation | undefined;
 	lifecycleObserver: AsyncCompactionLifecycleObserver | undefined;
 	lifecycleStartedAtMs: number | undefined;
 }

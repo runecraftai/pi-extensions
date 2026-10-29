@@ -1,11 +1,11 @@
 import type { Api, Model } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ExtensionContext, SessionBeforeCompactEvent, SessionEntry } from "@earendil-works/pi-coding-agent";
-import asyncPrefixCompaction from "../src/index";
-import { createBuiltinPiCompactionAdapter } from "../src/adapter";
-import { BUILTIN_ADAPTER_ID, EXTENSION_NAME, SUMMARY_PROMPT_VERSION } from "../src/constants";
-import { startAsyncJobWithDeps } from "../src/job";
-import { validateReadyJob } from "../src/validation";
-import { assistantEntry, userEntry } from "./entry-fixtures";
+import asyncPrefixCompaction from "../src/index.ts";
+import { createBuiltinPiCompactionAdapter } from "../src/adapter.ts";
+import { BUILTIN_ADAPTER_ID, EXTENSION_NAME, SUMMARY_PROMPT_VERSION } from "../src/constants.ts";
+import { startAsyncJob, startAsyncJobWithDeps } from "../src/job.ts";
+import { validateReadyJob } from "../src/validation.ts";
+import { assistantEntry, userEntry } from "./entry-fixtures.ts";
 
 export const settings = {
 	enabled: true,
@@ -108,7 +108,7 @@ export function manualCommandContext(entries: readonly SessionEntry[] = manualCo
 			setStatus: () => undefined,
 		},
 		modelRegistry: {
-			getApiKeyAndHeaders: () => new Promise<never>(() => {}),
+			streamSimple: () => new Promise<never>(() => {}),
 		},
 		compact: () => undefined,
 	} as unknown as ExtensionContext;
@@ -146,6 +146,7 @@ export function extensionHarness(deps?: Parameters<typeof asyncPrefixCompaction>
 	readonly statusValues: Array<string | undefined>;
 	readonly toolExpansionValues: boolean[];
 	readonly sentUserMessages: string[];
+	readonly emittedEvents: Array<{ name: string; payload: unknown }>;
 	readonly ctx: ExtensionContext;
 } {
 	const handlers = new Map<string, (event: unknown, ctx: ExtensionContext) => unknown>();
@@ -154,6 +155,7 @@ export function extensionHarness(deps?: Parameters<typeof asyncPrefixCompaction>
 	const statusValues: Array<string | undefined> = [];
 	const toolExpansionValues: boolean[] = [];
 	const sentUserMessages: string[] = [];
+	const emittedEvents: Array<{ name: string; payload: unknown }> = [];
 	const pi = {
 		on: (eventName: string, handler: (event: unknown, ctx: ExtensionContext) => unknown) => {
 			handlers.set(eventName, handler);
@@ -161,6 +163,7 @@ export function extensionHarness(deps?: Parameters<typeof asyncPrefixCompaction>
 		registerCommand: (name: string, command: { readonly handler: (args: string, ctx: ExtensionContext) => unknown }) => {
 			commands.set(name, command);
 		},
+		events: { emit: (name: string, payload: unknown) => emittedEvents.push({ name, payload }) },
 		sendUserMessage: (content: string | readonly unknown[]) => {
 			if (typeof content === "string") sentUserMessages.push(content);
 		},
@@ -181,9 +184,12 @@ export function extensionHarness(deps?: Parameters<typeof asyncPrefixCompaction>
 		},
 	} as unknown as ExtensionContext;
 
-	asyncPrefixCompaction(pi, deps);
+	asyncPrefixCompaction(pi, {
+		startAsyncJob: (ctx, state, options) => startAsyncJob(ctx, state, { force: false, ...options, timeoutMs: 0 }),
+		...deps,
+	});
 
-	return { handlers, commands, notifyMessages, statusValues, toolExpansionValues, sentUserMessages, ctx };
+	return { handlers, commands, notifyMessages, statusValues, toolExpansionValues, sentUserMessages, emittedEvents, ctx };
 }
 
 export function readyJob(overrides: Partial<Parameters<typeof validateReadyJob>[0]> = {}): Parameters<typeof validateReadyJob>[0] {

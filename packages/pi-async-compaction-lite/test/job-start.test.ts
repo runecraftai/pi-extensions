@@ -1,20 +1,13 @@
-import { describe, expect, test } from "bun:test";
-import type { RetryPolicy } from "@earendil-works/pi-ai";
+import { describe, test } from "node:test";
+import { expect } from "expect";
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { BUILTIN_ADAPTER_ID, EXTENSION_NAME } from "../src/constants";
-import { applyReadyCompaction, buildAsyncCompactionResult, startAsyncJobWithDeps } from "../src/job";
-import { createRuntimeState } from "../src/runtime-state";
-import { asyncJobContext, asyncJobDeps, compactableEntries, readyJob, settings } from "./test-fixtures";
+import { BUILTIN_ADAPTER_ID, EXTENSION_NAME } from "../src/constants.ts";
+import { applyReadyCompaction, startAsyncJobWithDeps } from "../src/job.ts";
+import { createRuntimeState } from "../src/runtime-state.ts";
+import { asyncJobContext, asyncJobDeps, compactableEntries, readyJob, settings } from "./test-fixtures.ts";
 
 const builtinJobId = `${EXTENSION_NAME}:${BUILTIN_ADAPTER_ID}:1`;
 
-interface ResolvedAuthFixture {
-	readonly ok: true;
-	readonly apiKey?: string;
-	readonly headers?: Readonly<Record<string, string | null>>;
-	readonly baseUrl?: string;
-	readonly env?: Readonly<Record<string, string>>;
-}
 
 describe("startAsyncJob lifecycle", () => {
 	test("does not start when disabled", () => {
@@ -24,151 +17,6 @@ describe("startAsyncJob lifecycle", () => {
 
 		expect(state.status).toBe("idle");
 		expect(state.jobId).toBeUndefined();
-	});
-
-	test("passes resolved auth environment to Pi compaction", async () => {
-		const entries = compactableEntries();
-		const ctx = {
-			...asyncJobContext(entries),
-			modelRegistry: {
-				getApiKeyAndHeaders: async () => ({
-					ok: true as const,
-					apiKey: "test-key",
-					env: { AWS_PROFILE: "compaction-profile" },
-				}),
-			},
-		} as unknown as ReturnType<typeof asyncJobContext>;
-		if (!ctx.model) throw new Error("expected test model");
-		let compactArguments: unknown[] | undefined;
-		await buildAsyncCompactionResult(
-			{
-				firstKeptEntryId: "u2",
-				messagesToSummarize: [],
-				turnPrefixMessages: [],
-				isSplitTurn: false,
-				tokensBefore: 100,
-				fileOps: { read: new Set(), written: new Set(), edited: new Set() },
-				settings,
-			},
-			ctx.model,
-			ctx,
-			"off",
-			new AbortController().signal,
-			async (...args) => {
-				compactArguments = args;
-				return { summary: "async summary", firstKeptEntryId: "u2", tokensBefore: 100 };
-			},
-		);
-
-		expect(compactArguments?.[8]).toEqual({ AWS_PROFILE: "compaction-profile" });
-	});
-
-	test("forwards the effective retry policy to Pi compaction", async () => {
-		const retryPolicy: RetryPolicy = { enabled: true, maxRetries: 4, baseDelayMs: 250 };
-		const env = { AWS_PROFILE: "retry-profile" };
-		const { compactArguments } = await buildWithAuth({ ok: true, apiKey: "test-key", env }, undefined, retryPolicy);
-
-		expect(compactArguments?.slice(8, 10)).toEqual([env, retryPolicy]);
-	});
-
-	test("preserves nullable provider headers at the Pi compaction boundary", async () => {
-		const ctx = {
-			...asyncJobContext(compactableEntries()),
-			modelRegistry: {
-				getApiKeyAndHeaders: async () => ({
-					ok: true as const,
-					apiKey: "test-key",
-					headers: { "x-present": "value", "x-removed": null },
-				}),
-			},
-		} as unknown as ReturnType<typeof asyncJobContext>;
-		if (!ctx.model) throw new Error("expected test model");
-		let compactArguments: unknown[] | undefined;
-
-		await buildAsyncCompactionResult(
-			{
-				firstKeptEntryId: "u2",
-				messagesToSummarize: [],
-				turnPrefixMessages: [],
-				isSplitTurn: false,
-				tokensBefore: 100,
-				fileOps: { read: new Set(), written: new Set(), edited: new Set() },
-				settings,
-			},
-			ctx.model,
-			ctx,
-			"off",
-			new AbortController().signal,
-			async (...args) => {
-				compactArguments = args;
-				return { summary: "async summary", firstKeptEntryId: "u2", tokensBefore: 100 };
-			},
-		);
-
-		expect(compactArguments?.[3]).toEqual({ "x-present": "value", "x-removed": null });
-	});
-
-	test("uses Pi's resolved header deletions for the request model", async () => {
-		const { compactArguments } = await buildWithAuth(
-			{
-				ok: true,
-				apiKey: "test-key",
-				headers: { authorization: null, "x-model-header": "kept" },
-			},
-			{ Authorization: "Bearer model-token", "x-model-header": "kept" },
-		);
-
-		expect(compactArguments?.[1]).toEqual(
-			expect.objectContaining({ headers: { "x-model-header": "kept" } }),
-		);
-		expect(compactArguments?.[3]).toEqual({ authorization: null, "x-model-header": "kept" });
-	});
-
-	test("uses Pi's resolved headers as the request model without casing collisions", async () => {
-		const { compactArguments } = await buildWithAuth(
-			{
-				ok: true,
-				apiKey: "test-key",
-				headers: { authorization: "Bearer resolved-token", "x-model-header": "kept" },
-			},
-			{ Authorization: "Bearer model-token", AUTHORIZATION: "Bearer stale-token", "x-model-header": "kept" },
-		);
-
-		expect(compactArguments?.[1]).toEqual(
-			expect.objectContaining({
-				headers: { authorization: "Bearer resolved-token", "x-model-header": "kept" },
-			}),
-		);
-		expect(compactArguments?.[3]).toEqual({ authorization: "Bearer resolved-token", "x-model-header": "kept" });
-	});
-
-	test("uses the resolved request base URL", async () => {
-		const { compactArguments, model } = await buildWithAuth({
-			ok: true,
-			apiKey: "test-key",
-			baseUrl: "https://resolved.example.invalid",
-		});
-
-		expect(compactArguments?.[1]).toEqual({ ...model, baseUrl: "https://resolved.example.invalid" });
-	});
-
-	test("accepts header-only authentication", async () => {
-		const { compactArguments } = await buildWithAuth({
-			ok: true,
-			headers: { Authorization: "Bearer ambient-token" },
-		});
-
-		expect(compactArguments?.[2]).toBeUndefined();
-		expect(compactArguments?.[3]).toEqual({ Authorization: "Bearer ambient-token" });
-	});
-
-	test("rejects resolved requests without an API key or usable headers", async () => {
-		expect(
-			buildWithAuth({
-				ok: true,
-				headers: { Authorization: null },
-			}),
-		).rejects.toThrow("No API key or headers for openai");
 	});
 
 	test("sets cli status line while a background job is pending", () => {
@@ -204,8 +52,8 @@ describe("startAsyncJob lifecycle", () => {
 			}),
 		);
 
-		expect(state.jobId).toBe("async-prefix-compaction:partner.adapter:1");
-		expect(statusValues).toEqual([{ key: "async-prefix-compaction:partner.adapter", text: "partner compaction: preparing" }]);
+		expect(state.jobId).toBe("runecraft-async-compaction:partner.adapter:1");
+		expect(statusValues).toEqual([{ key: "runecraft-async-compaction:partner.adapter", text: "partner compaction: preparing" }]);
 	});
 
 	test("starts a pending job below the async threshold when forced", () => {
@@ -304,7 +152,7 @@ describe("startAsyncJob lifecycle", () => {
 		expect(compactTriggered).toBe(0);
 	});
 
-	test("requests deferred compaction before force-stopping an active ready job", () => {
+	test("waits for native compaction even if host offers a deferred checkpoint", () => {
 		const state = createRuntimeState();
 		state.status = "ready";
 		state.jobId = builtinJobId;
@@ -334,14 +182,14 @@ describe("startAsyncJob lifecycle", () => {
 			asyncJobDeps({ triggerCompaction: () => compactTriggered++ }),
 		);
 
-		expect(applied).toBe(true);
-		expect(requestCount).toBe(1);
+		expect(applied).toBe(false);
+		expect(requestCount).toBe(0);
 		expect(abortCalls).toBe(0);
 		expect(compactTriggered).toBe(0);
 		expect(state.applyInFlight).toBeUndefined();
 	});
 
-	test("retries deferred scheduling when an automatic start reuses a ready job", () => {
+	test("preserves a reusable ready job without scheduling a checkpoint", () => {
 		const state = createRuntimeState();
 		state.status = "ready";
 		state.jobId = builtinJobId;
@@ -368,11 +216,11 @@ describe("startAsyncJob lifecycle", () => {
 		);
 
 		expect(outcome).toBe("ready_reused");
-		expect(requestCount).toBe(1);
+		expect(requestCount).toBe(0);
 		expect(state.applyInFlight).toBeUndefined();
 	});
 
-	test("falls back to force apply when deferred compaction is rejected", () => {
+	test("does not fall back to abort when a checkpoint is unavailable", () => {
 		const state = createRuntimeState();
 		state.status = "ready";
 		state.jobId = builtinJobId;
@@ -398,12 +246,12 @@ describe("startAsyncJob lifecycle", () => {
 			asyncJobDeps({ triggerCompaction: () => compactTriggered++ }),
 		);
 
-		expect(applied).toBe(true);
-		expect(abortCalls).toBe(1);
-		expect(compactTriggered).toBe(1);
+		expect(applied).toBe(false);
+		expect(abortCalls).toBe(0);
+		expect(compactTriggered).toBe(0);
 	});
 
-	test("force-stops the active agent before applying a ready job over the async threshold", () => {
+	test("preserves an active agent above the async threshold", () => {
 		const state = createRuntimeState();
 		state.status = "ready";
 		state.jobId = builtinJobId;
@@ -429,9 +277,9 @@ describe("startAsyncJob lifecycle", () => {
 			asyncJobDeps({ triggerCompaction: () => compactTriggered++ }),
 		);
 
-		expect(applied).toBe(true);
-		expect(abortCalls).toBe(1);
-		expect(compactTriggered).toBe(1);
+		expect(applied).toBe(false);
+		expect(abortCalls).toBe(0);
+		expect(compactTriggered).toBe(0);
 	});
 
 	test("claims a ready job before triggering Pi compaction", () => {
@@ -525,47 +373,3 @@ describe("startAsyncJob lifecycle", () => {
 		expect(compactTriggered).toBe(1);
 	});
 });
-
-async function buildWithAuth(
-	auth: ResolvedAuthFixture,
-	modelHeaders?: Readonly<Record<string, string>>,
-	retryPolicy: RetryPolicy = { enabled: false, maxRetries: 0, baseDelayMs: 0 },
-): Promise<{
-	readonly compactArguments: unknown[] | undefined;
-	readonly model: NonNullable<ExtensionContext["model"]>;
-}> {
-	const baseCtx = asyncJobContext(compactableEntries());
-	if (!baseCtx.model) throw new Error("expected test model");
-	const ctx = {
-		...baseCtx,
-		model: modelHeaders ? { ...baseCtx.model, headers: { ...modelHeaders } } : baseCtx.model,
-		modelRegistry: {
-			getApiKeyAndHeaders: async () => auth,
-		},
-	} as unknown as ReturnType<typeof asyncJobContext>;
-	if (!ctx.model) throw new Error("expected test model");
-	let compactArguments: unknown[] | undefined;
-
-	await buildAsyncCompactionResult(
-		{
-			firstKeptEntryId: "u2",
-			messagesToSummarize: [],
-			turnPrefixMessages: [],
-			isSplitTurn: false,
-			tokensBefore: 100,
-			fileOps: { read: new Set(), written: new Set(), edited: new Set() },
-			settings,
-		},
-		ctx.model,
-		ctx,
-		"off",
-		new AbortController().signal,
-		async (...args) => {
-			compactArguments = args;
-			return { summary: "async summary", firstKeptEntryId: "u2", tokensBefore: 100 };
-		},
-		() => retryPolicy,
-	);
-
-	return { compactArguments, model: ctx.model };
-}

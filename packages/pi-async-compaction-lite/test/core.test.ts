@@ -1,13 +1,13 @@
-import { describe, expect, test } from "bun:test";
+import { describe, test } from "node:test";
+import { expect } from "expect";
 import type { CompactionResult, ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { registerAsyncCompaction } from "../src/core";
-import { ASTRA_MODE_ENTRY_TYPE } from "../src/astra/activation";
-import type { AsyncCompactionLifecycleEvent } from "../src/core";
-import { createBuiltinPiCompactionAdapter } from "../src/adapter";
-import type { AsyncCompactionAdapter } from "../src/adapter";
-import { startAsyncJobWithDeps } from "../src/job";
-import type { RuntimeState, Snapshot } from "../src/types";
-import { asyncJobContext, asyncJobDeps, compactableEntries, settings, validationEvent } from "./test-fixtures";
+import { registerAsyncCompaction } from "../src/core.ts";
+import type { AsyncCompactionLifecycleEvent } from "../src/core.ts";
+import { createBuiltinPiCompactionAdapter } from "../src/adapter.ts";
+import type { AsyncCompactionAdapter } from "../src/adapter.ts";
+import { startAsyncJobWithDeps } from "../src/job.ts";
+import type { RuntimeState, Snapshot } from "../src/types.ts";
+import { asyncJobContext, asyncJobDeps, compactableEntries, settings, validationEvent } from "./test-fixtures.ts";
 
 describe("registerAsyncCompaction", () => {
 	test("registers lifecycle hooks that run a supplied adapter and hand off its compaction", async () => {
@@ -16,10 +16,11 @@ describe("registerAsyncCompaction", () => {
 			on: (eventName: string, handler: (event: unknown, ctx: ExtensionContext) => unknown) => {
 				handlers.set(eventName, handler);
 			},
+			events: { emit: () => undefined },
 			registerCommand: () => undefined,
 		} as unknown as ExtensionAPI;
 		const snapshot: Snapshot = {
-			jobId: "async-prefix-compaction:package-adapter:1",
+			jobId: "runecraft-async-compaction:package-adapter:1",
 			sessionId: "session-1",
 			snapshotLeafId: "u2",
 			firstKeptEntryId: "u2",
@@ -61,30 +62,31 @@ describe("registerAsyncCompaction", () => {
 			compaction: expect.objectContaining({
 				summary: "snapshot summary",
 				firstKeptEntryId: "u2",
-				tokensBefore: 123,
+				tokensBefore: 100,
 				details: expect.objectContaining({
 					packageAdapter: true,
 					asyncPrefixCompaction: expect.objectContaining({
 						adapterId: "package-adapter",
-						jobId: "async-prefix-compaction:package-adapter:1",
+						jobId: "runecraft-async-compaction:package-adapter:1",
 						promptVersion: "adapter-test-v1",
 					}),
 				}),
 			}),
 		});
 		expect(lifecycleEvents).toEqual([
-			expect.objectContaining({ event: "started", adapterId: "package-adapter", jobId: "async-prefix-compaction:package-adapter:1" }),
-			expect.objectContaining({ event: "ready", adapterId: "package-adapter", jobId: "async-prefix-compaction:package-adapter:1", durationMs: expect.any(Number) }),
-			expect.objectContaining({ event: "handed_off", adapterId: "package-adapter", jobId: "async-prefix-compaction:package-adapter:1", durationMs: expect.any(Number) }),
+			expect.objectContaining({ event: "started", adapterId: "package-adapter", jobId: "runecraft-async-compaction:package-adapter:1" }),
+			expect.objectContaining({ event: "ready", adapterId: "package-adapter", jobId: "runecraft-async-compaction:package-adapter:1", durationMs: expect.any(Number) }),
+			expect.objectContaining({ event: "handed_off", adapterId: "package-adapter", jobId: "runecraft-async-compaction:package-adapter:1", durationMs: expect.any(Number) }),
 		]);
 	});
 
-	test("requests the host checkpoint for a ready result without aborting", async () => {
+	test("leaves a ready result for the native checkpoint without aborting", async () => {
 		const handlers = new Map<string, (event: unknown, ctx: ExtensionContext) => unknown>();
 		const pi = {
 			on: (eventName: string, handler: (event: unknown, ctx: ExtensionContext) => unknown) => {
 				handlers.set(eventName, handler);
 			},
+			events: { emit: () => undefined },
 			registerCommand: () => undefined,
 		} as unknown as ExtensionAPI;
 		registerAsyncCompaction(
@@ -116,7 +118,7 @@ describe("registerAsyncCompaction", () => {
 		await Promise.resolve();
 		await Promise.resolve();
 
-		expect(requests).toBe(1);
+		expect(requests).toBe(0);
 		expect(abortCalls).toBe(0);
 		expect(await beforeCompact(validationEvent(), ctx)).toEqual({
 			compaction: expect.objectContaining({ summary: "async summary" }),
@@ -128,6 +130,7 @@ describe("registerAsyncCompaction", () => {
 		const lifecycleEvents: AsyncCompactionLifecycleEvent[] = [];
 		const pi = {
 			on: (eventName: string, handler: (event: unknown, ctx: ExtensionContext) => unknown) => handlers.set(eventName, handler),
+			events: { emit: () => undefined },
 			registerCommand: () => undefined,
 		} as unknown as ExtensionAPI;
 		const deps = asyncJobDeps();
@@ -152,12 +155,11 @@ describe("registerAsyncCompaction", () => {
 		if (!runtimeState) throw new Error("expected runtime state");
 		const correlation = {
 			adapterId: runtimeState.adapterId,
-			jobId: "async-prefix-compaction:builtin-pi-compaction:1",
+			jobId: "runecraft-async-compaction:builtin-pi-compaction:1",
 			promptVersion: "pi-compact-background-v1",
 		};
 		runtimeState.status = "idle";
 		runtimeState.lastHandedOff = correlation;
-		runtimeState.autoResumeAfterCompaction = correlation;
 		const failureEvent = {
 			type: "session_compact_failed",
 			reason: "manual",
@@ -174,7 +176,6 @@ describe("registerAsyncCompaction", () => {
 		expect(runtimeState).toMatchObject({
 			status: "failed",
 			lastHandedOff: undefined,
-			autoResumeAfterCompaction: undefined,
 		});
 		expect(lifecycleEvents).toEqual([
 			expect.objectContaining({
@@ -190,6 +191,7 @@ describe("registerAsyncCompaction", () => {
 		const handlers = new Map<string, (event: unknown, ctx: ExtensionContext) => unknown>();
 		const pi = {
 			on: (eventName: string, handler: (event: unknown, ctx: ExtensionContext) => unknown) => handlers.set(eventName, handler),
+			events: { emit: () => undefined },
 			registerCommand: () => undefined,
 		} as unknown as ExtensionAPI;
 		const adapter: AsyncCompactionAdapter<Record<never, never>, { readonly text: string }> = {
@@ -255,39 +257,3 @@ describe("registerAsyncCompaction", () => {
 		expect(() => registerAsyncCompaction(pi, unsafeAdapter)).toThrow("unsafe adapter id");
 	});
 });
-
-for (const selection of ["persisted", "environment", "malformed-persisted", "malformed-environment", "model-switch"]) {
-	test(`does not suppress ordinary-model async compaction for Astra ${selection} mode`, () => {
-		const previousMode = process.env.PI_ASTRA_COMPACTION_MODE;
-		try {
-			process.env.PI_ASTRA_COMPACTION_MODE = selection === "malformed-environment" ? "invalid" : "remote";
-			const handlers = new Map<string, (event: unknown, ctx: ExtensionContext) => unknown>();
-			const pi = {
-				on: (eventName: string, handler: (event: unknown, ctx: ExtensionContext) => unknown) => handlers.set(eventName, handler),
-				registerCommand: () => undefined,
-			} as unknown as ExtensionAPI;
-			let starts = 0;
-			registerAsyncCompaction(pi, createBuiltinPiCompactionAdapter(asyncJobDeps().buildAsyncCompactionResult), { commandName: false }, {
-				startAsyncJob: () => { starts++; return "started"; },
-			});
-			const turnEnd = handlers.get("turn_end");
-			if (!turnEnd) throw new Error("expected turn_end handler");
-			const entries = compactableEntries();
-			if (selection === "persisted" || selection === "malformed-persisted") entries.push({
-				type: "custom", id: "astra-mode", parentId: "u2", timestamp: "2026-06-30T00:00:00.000Z", customType: ASTRA_MODE_ENTRY_TYPE,
-				data: { protocol: selection === "malformed-persisted" ? 999 : 1, mode: "remote" },
-			});
-			const ctx = asyncJobContext(entries) as ExtensionContext;
-			if (selection === "model-switch") {
-				turnEnd({}, { ...ctx, model: { ...ctx.model!, provider: "openai-codex", id: "gpt-6-astra", api: "openai-codex-responses", baseUrl: "https://chatgpt.com/backend-api" } });
-				expect(starts).toBe(0);
-				handlers.get("model_select")?.({}, ctx);
-			}
-			turnEnd({}, ctx);
-			expect(starts).toBe(1);
-		} finally {
-			if (previousMode === undefined) delete process.env.PI_ASTRA_COMPACTION_MODE;
-			else process.env.PI_ASTRA_COMPACTION_MODE = previousMode;
-		}
-	});
-}

@@ -1,15 +1,15 @@
-import type { Api, Model, ProviderHeaders, RetryPolicy } from "@earendil-works/pi-ai";
+import type { Api, Model, RetryPolicy } from "@earendil-works/pi-ai";
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import type { CompactionResult, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { compact } from "@earendil-works/pi-coding-agent";
-import { createBuiltinPiCompactionAdapter } from "./adapter";
-import type { AsyncCompactionAdapter } from "./adapter";
-import { InvalidationReason } from "./constants";
-import { emitLifecycleEvent, getLifecycleDurationMs } from "./diagnostics";
-import { getAbortInvalidationReason, getStatusKey, markStale, nextJobId } from "./runtime-state";
-import type { AsyncCompactionDetails, JobCorrelation, LocalCompactionPreparation, ReadyJob, ResolvedCompactionSettings, RuntimeState, Snapshot } from "./types";
-import { getReadyJobContextInvalidationReason } from "./validation";
-import { getCompactionSettings, getRetrySettings, getStartRatio, getStartWindow, getTimeoutMs, isEnabled } from "./utils";
+import { createBuiltinPiCompactionAdapter } from "./adapter.ts";
+import type { AsyncCompactionAdapter } from "./adapter.ts";
+import { InvalidationReason } from "./constants.ts";
+import { emitLifecycleEvent, getLifecycleDurationMs } from "./diagnostics.ts";
+import { getAbortInvalidationReason, getStatusKey, markStale, nextJobId } from "./runtime-state.ts";
+import type { AsyncCompactionDetails, JobCorrelation, LocalCompactionPreparation, ReadyJob, ResolvedCompactionSettings, RuntimeState, Snapshot } from "./types.ts";
+import { getReadyJobContextInvalidationReason } from "./validation.ts";
+import { getCompactionSettings, getRetrySettings, getStartRatio, getStartWindow, getTimeoutMs, isEnabled } from "./utils.ts";
 
 function getReadyJobReplacementReason(
 	ready: ReadyJob,
@@ -23,33 +23,6 @@ function canApplyReadyCompaction(ctx: ExtensionContext): boolean {
 	return ctx.isIdle() && !ctx.hasPendingMessages();
 }
 
-function requestCompactionBeforeNextTurn(ctx: ExtensionContext): boolean {
-	const deferredContext = ctx as ExtensionContext & {
-		requestCompactionBeforeNextTurn?: () => boolean;
-	};
-	const request = deferredContext.requestCompactionBeforeNextTurn;
-	return typeof request === "function" && request.call(ctx);
-}
-
-function shouldForceApplyReadyCompaction(ctx: ExtensionContext, deps: StartAsyncJobDependencies): boolean {
-	if (ctx.isIdle() || ctx.hasPendingMessages()) return false;
-	if (!ctx.signal || ctx.signal.aborted) return false;
-
-	const usage = ctx.getContextUsage();
-	if (!usage || usage.tokens === null || usage.contextWindow <= 0) return false;
-
-	return usage.tokens > Math.floor(usage.contextWindow * deps.getStartRatio());
-}
-
-function normalizeProviderHeaders(headers: ProviderHeaders | undefined): Record<string, string> | undefined {
-	if (!headers) return undefined;
-	const normalized: Record<string, string> = {};
-	for (const [name, value] of Object.entries(headers)) {
-		if (value !== null) normalized[name] = value;
-	}
-	return Object.keys(normalized).length > 0 ? normalized : undefined;
-}
-
 export async function buildAsyncCompactionResult(
 	preparation: LocalCompactionPreparation,
 	model: Model<Api>,
@@ -59,31 +32,11 @@ export async function buildAsyncCompactionResult(
 	compactFn: typeof compact = compact,
 	getRetrySettingsFn: (ctx: ExtensionContext) => RetryPolicy = getRetrySettings,
 ): Promise<CompactionResult> {
-	const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
-	if (!auth.ok) {
-		throw new Error(auth.error);
-	}
-	const requestHeaders = normalizeProviderHeaders(auth.headers);
-	if (!auth.apiKey && !requestHeaders) {
-		throw new Error(`No API key or headers for ${model.provider}`);
-	}
-	const requestModel = auth.baseUrl || auth.headers
-		? { ...model, ...(auth.baseUrl ? { baseUrl: auth.baseUrl } : {}), headers: requestHeaders }
-		: model;
-
-	// Pi's compact() type still excludes nullable ProviderHeaders, but its runtime forwards them
-	// to pi-ai unchanged. Keep the cast at this compatibility boundary until Pi widens the type.
+	// Pi owns provider routing and authentication. Never extract or copy credentials.
 	return compactFn(
-		preparation,
-		requestModel,
-		auth.apiKey,
-		auth.headers as Parameters<typeof compact>[3],
-		undefined,
-		signal,
-		thinkingLevel,
-		undefined,
-		auth.env,
-		getRetrySettingsFn(ctx),
+		preparation, model, undefined, undefined, undefined, signal, thinkingLevel,
+		(requestModel, context, options) => ctx.modelRegistry.streamSimple(requestModel, context, options),
+		undefined, getRetrySettingsFn(ctx),
 	);
 }
 
@@ -166,22 +119,14 @@ export function applyReadyCompaction(
 		setCliStatus(deps, ctx, state, undefined);
 		return false;
 	}
-	if (requestCompactionBeforeNextTurn(ctx)) {
-		setCliStatus(deps, ctx, state, undefined);
-		return true;
-	}
-	if (!canApplyReadyCompaction(ctx) && !shouldForceApplyReadyCompaction(ctx, deps)) {
+	// A busy turn owns its tools. Leave this result for native compaction.
+	if (!canApplyReadyCompaction(ctx)) {
 		setCliStatus(deps, ctx, state, `${state.adapterLabel}: ready`);
 		return false;
 	}
 	const correlation = getJobCorrelation(state.ready);
-	const shouldAbortBeforeApply = !ctx.isIdle();
 	state.applyInFlight = correlation;
 	setCliStatus(deps, ctx, state, undefined);
-	if (shouldAbortBeforeApply) {
-		state.autoResumeAfterCompaction = correlation;
-		ctx.abort();
-	}
 	deps.triggerCompaction(ctx, (error) => recordApplyError(state, correlation, error));
 	return true;
 }
@@ -221,7 +166,6 @@ export function recordApplyError(state: RuntimeState, correlation: JobCorrelatio
 	state.error = `apply failed: ${error.message}`;
 	state.applyInFlight = undefined;
 	state.lastHandedOff = undefined;
-	state.autoResumeAfterCompaction = undefined;
 	state.lifecycleStartedAtMs = undefined;
 }
 
@@ -340,7 +284,6 @@ function markPending(state: RuntimeState, jobId: string, abortController: AbortC
 	state.error = undefined;
 	state.applyInFlight = undefined;
 	state.lastHandedOff = undefined;
-	state.autoResumeAfterCompaction = undefined;
 	state.lifecycleStartedAtMs = Date.now();
 	emitLifecycleEvent(state.lifecycleObserver, {
 		event: "started",
