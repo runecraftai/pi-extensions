@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { EventEmitter, once } from 'node:events';
+import { existsSync, realpathSync } from 'node:fs';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,13 +10,40 @@ export const PI_VERSION = '1.4.0';
 const fixture = fileURLToPath(new URL('./fixture.ts', import.meta.url));
 const deadline = 15000;
 
-export function requirePi(binary = process.env.PI_LIFECYCLE_BIN || 'pi') {
+function probeVersion(binary) {
   const result = spawnSync(binary, ['--version'], { encoding: 'utf8', timeout: 5000 });
-  if (result.error || result.status !== 0 || result.stdout.trim() !== PI_VERSION) {
+  const lines = (result.stdout ?? '').split('\n').map((line) => line.trim()).filter(Boolean);
+  return {
+    ok: !result.error && result.status === 0 && lines.at(-1) === PI_VERSION,
+    // A launcher wrapper may announce itself before Pi's own version line, but then
+    // its preamble would also corrupt the RPC stdout stream and reset its own resolution.
+    clean: lines.length === 1 && lines[0] === PI_VERSION,
+    detail: result.error?.message || lines.join(' | ') || result.stderr?.trim() || `exit ${result.status}`,
+  };
+}
+
+function resolveLauncher() {
+  const which = spawnSync('mise', ['which', 'pi'], { encoding: 'utf8', timeout: 5000 });
+  const candidate = (which.stdout ?? '').split('\n').map((line) => line.trim()).filter(Boolean).at(-1);
+  if (which.error || which.status !== 0 || !candidate || !existsSync(candidate)) return undefined;
+  return probeVersion(candidate).clean ? realpathSync(candidate) : undefined;
+}
+
+export function requirePi(binary = process.env.PI_LIFECYCLE_BIN || 'pi') {
+  const probe = probeVersion(binary);
+  if (!probe.ok) {
     throw new Error(`Lifecycle tests REQUIRE Pi ${PI_VERSION} on PATH (or PI_LIFECYCLE_BIN). ` +
-      `Install that exact version; tests never skip. Got: ${result.error?.message || result.stdout || result.stderr || result.status}`);
+      `Install that exact version; tests never skip. Got: ${probe.detail}`);
   }
-  return binary.includes('/') ? resolve(binary) : binary;
+  if (probe.clean) return binary.includes('/') ? resolve(binary) : binary;
+  if (binary === 'pi') {
+    const launcher = resolveLauncher();
+    if (launcher) return launcher;
+  }
+  throw new Error(`Lifecycle tests REQUIRE Pi ${PI_VERSION} as a JSON-only RPC process. ${binary} reports ` +
+    `Pi ${PI_VERSION} but writes a launcher preamble to stdout, so Pi's RPC records would not be JSON and the ` +
+    `isolated HOME would make it re-resolve Pi (network install). Set PI_LIFECYCLE_BIN to the concrete Pi ` +
+    `${PI_VERSION} executable (mise users: \`mise which pi\`); tests never skip.`);
 }
 
 export async function runScenario(binary, scenario, mutation) {
@@ -56,6 +84,7 @@ export async function runScenario(binary, scenario, mutation) {
   const diagnostic = () => `Scenario ${scenario}${mutation ? ` (${mutation})` : ''}: ${stderr}\n` +
     JSON.stringify(trace, null, 2);
   child.on('error', (error) => { failure = error; updates.emit('update'); });
+  child.stdin.on('error', (error) => { failure ??= error; updates.emit('update'); });
   child.on('close', (code, signal) => {
     failure ||= new Error(`Pi exited unexpectedly: code=${code}, signal=${signal}`);
     updates.emit('update');

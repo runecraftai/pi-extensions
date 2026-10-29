@@ -5,6 +5,12 @@ Run `npm run test:lifecycle` or the repository-wide `npm test`.
 The harness requires **Pi 1.4.0** on `PATH`; it checks `pi --version` and fails
 rather than skipping if Pi is missing or incompatible. Set `PI_LIFECYCLE_BIN`
 to an explicit executable to test another installation of that same version.
+
+Launcher wrappers are resolved to the concrete Pi executable they manage. A
+wrapper (for example a mise `pi` script) prints an install preamble on stdout,
+which would both corrupt the RPC stream and, under the harness's isolated
+`HOME`, re-resolve and re-download Pi. Point `PI_LIFECYCLE_BIN` at the concrete
+executable (`mise which pi`) when no concrete target can be resolved.
 CI installs the pinned Pi CLI before running `npm test`.
 
 ## What executes

@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
 import test from 'node:test';
-import { assertToolIntact, requirePi, runScenario } from './driver.mjs';
+import { assertToolIntact, PI_VERSION, requirePi, runScenario } from './driver.mjs';
 
 const binary = requirePi(); // Missing/wrong Pi is a hard failure, never a skip.
 const options = { timeout: 20000 };
@@ -223,4 +225,25 @@ test('J negative control: the safety assertion detects the real ctx.abort call a
 test('version preflight fails loudly for missing and incompatible Pi', () => {
   assert.throws(() => requirePi('/nonexistent/pi-lifecycle-binary'), /REQUIRE Pi 1\.4\.0.*never skip/);
   assert.throws(() => requirePi(process.execPath), /REQUIRE Pi 1\.4\.0.*never skip/);
+});
+
+test('version preflight accepts a concrete executable and rejects a preamble launcher', async () => {
+  const scratch = await mkdtemp(resolve('.pi-lifecycle-probe-'));
+  try {
+    const concrete = join(scratch, 'pi-concrete');
+    await writeFile(concrete, `#!/bin/sh\necho ${PI_VERSION}\n`, { mode: 0o755 });
+    assert.equal(requirePi(concrete), resolve(concrete));
+
+    // Same version, but announced behind a launcher preamble: unusable for RPC.
+    const wrapper = join(scratch, 'pi-wrapper');
+    await writeFile(wrapper, `#!/bin/sh\necho "launcher: pinned ${PI_VERSION}"\necho ${PI_VERSION}\n`, { mode: 0o755 });
+    let error;
+    try { requirePi(wrapper); } catch (failure) { error = failure; }
+    assert.ok(error, 'preamble launcher was accepted as the RPC binary');
+    assert.match(error.message, /PI_LIFECYCLE_BIN/);
+    assert.match(error.message, /preamble/);
+    assert.doesNotMatch(error.message, /Install that exact version/);
+  } finally {
+    await rm(scratch, { recursive: true, force: true });
+  }
 });
