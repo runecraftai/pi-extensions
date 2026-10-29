@@ -2,9 +2,9 @@
 
 Run `npm run test:lifecycle` or the repository-wide `npm test`.
 
-The harness requires **Pi 1.4.0** on `PATH`; it checks `pi --version` and fails
-rather than skipping if Pi is missing or incompatible. Set `PI_LIFECYCLE_BIN`
-to an explicit executable to test another installation of that same version.
+The harness requires **Pi 1.4.0**; it resolves the binary from
+`PI_LIFECYCLE_BIN`, the install managed by mise, or `PATH`, then checks
+`pi --version` and fails rather than skipping if Pi is missing or incompatible.
 
 Launcher wrappers and version-manager shims are resolved to the concrete Pi
 executable they manage, because a launcher's stdout preamble would corrupt the
@@ -14,6 +14,7 @@ environment before spawning it, and asks mise's read-only `mise which pi` for
 the install it manages rather than executing an auto-installing `pi` launcher.
 Point `PI_LIFECYCLE_BIN` at the concrete executable (`mise which pi`) when no
 concrete target can be resolved.
+
 CI installs the pinned Pi CLI before running `npm test`. Pi resolves extension
 imports of `@earendil-works/pi-ai` and `@earendil-works/pi-coding-agent` to its
 own bundled modules, so the fixture uses the same `SettingsManager` and stream
