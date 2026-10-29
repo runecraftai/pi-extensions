@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { realpathSync } from 'node:fs';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
@@ -241,9 +242,35 @@ test('version preflight accepts a concrete executable and rejects a preamble lau
     try { requirePi(wrapper); } catch (failure) { error = failure; }
     assert.ok(error, 'preamble launcher was accepted as the RPC binary');
     assert.match(error.message, /PI_LIFECYCLE_BIN/);
-    assert.match(error.message, /preamble/);
+    assert.match(error.message, /launcher/);
     assert.doesNotMatch(error.message, /Install that exact version/);
   } finally {
+    await rm(scratch, { recursive: true, force: true });
+  }
+});
+
+test('version preflight resolves a launcher to the concrete executable mise manages', async () => {
+  const scratch = await mkdtemp(resolve('.pi-lifecycle-probe-'));
+  const path = process.env.PATH;
+  const explicit = process.env.PI_LIFECYCLE_BIN;
+  const agentDir = process.env.PI_CODING_AGENT_DIR;
+  try {
+    const concrete = join(scratch, 'pi-concrete');
+    await writeFile(concrete, `#!/bin/sh\necho ${PI_VERSION}\n`, { mode: 0o755 });
+    await writeFile(join(scratch, 'mise'), `#!/bin/sh\necho "${concrete}"\n`, { mode: 0o755 });
+    // This launcher looks clean under the operator environment and noisy under the isolated one,
+    // so classifying it by a single operator-environment probe hands the harness a broken RPC pipe.
+    await writeFile(join(scratch, 'pi'),
+      `#!/bin/sh\n[ -z "$PI_CODING_AGENT_DIR" ] || echo "launcher: pinned ${PI_VERSION}"\nexec "${concrete}" "$@"\n`,
+      { mode: 0o755 });
+    process.env.PATH = `${scratch}:${path}`;
+    delete process.env.PI_LIFECYCLE_BIN;
+    delete process.env.PI_CODING_AGENT_DIR;
+    assert.equal(requirePi(), realpathSync(concrete));
+  } finally {
+    process.env.PATH = path;
+    if (explicit !== undefined) process.env.PI_LIFECYCLE_BIN = explicit;
+    if (agentDir !== undefined) process.env.PI_CODING_AGENT_DIR = agentDir;
     await rm(scratch, { recursive: true, force: true });
   }
 });

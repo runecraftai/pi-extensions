@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { EventEmitter, once } from 'node:events';
-import { existsSync, realpathSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,40 +10,63 @@ export const PI_VERSION = '1.4.0';
 const fixture = fileURLToPath(new URL('./fixture.ts', import.meta.url));
 const deadline = 15000;
 
-function probeVersion(binary) {
-  const result = spawnSync(binary, ['--version'], { encoding: 'utf8', timeout: 5000 });
-  const lines = (result.stdout ?? '').split('\n').map((line) => line.trim()).filter(Boolean);
+// Deliberately allowlisted environment: no provider credentials or agent config leak.
+function baseEnv(home, agentDir) {
   return {
-    ok: !result.error && result.status === 0 && lines.at(-1) === PI_VERSION,
-    // A launcher wrapper may announce itself before Pi's own version line, but then
-    // its preamble would also corrupt the RPC stdout stream and reset its own resolution.
-    clean: lines.length === 1 && lines[0] === PI_VERSION,
-    detail: result.error?.message || lines.join(' | ') || result.stderr?.trim() || `exit ${result.status}`,
+    PATH: process.env.PATH, HOME: home, XDG_CONFIG_HOME: join(home, '.config'),
+    PI_CODING_AGENT_DIR: agentDir, PI_OFFLINE: '1', NO_COLOR: '1',
   };
+}
+
+function probeVersion(binary) {
+  const scratch = mkdtempSync(resolve('.pi-lifecycle-probe-'));
+  try {
+    const home = join(scratch, 'home');
+    const agentDir = join(home, '.pi', 'agent');
+    mkdirSync(agentDir, { recursive: true });
+    const result = spawnSync(binary, ['--version'], {
+      encoding: 'utf8', timeout: 5000, cwd: scratch, env: baseEnv(home, agentDir),
+    });
+    const lines = (result.stdout ?? '').split('\n').map((line) => line.trim()).filter(Boolean);
+    return {
+      ok: !result.error && result.status === 0 && lines.at(-1) === PI_VERSION,
+      // Scenarios spawn with the same isolated environment, so a version-only stdout here is what
+      // proves the executable is concrete instead of a launcher that re-resolves and installs Pi.
+      clean: lines.length === 1 && lines[0] === PI_VERSION,
+      detail: result.error?.message || lines.join(' | ') || result.stderr?.trim() || `exit ${result.status}`,
+    };
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
 }
 
 function resolveLauncher() {
   const which = spawnSync('mise', ['which', 'pi'], { encoding: 'utf8', timeout: 5000 });
   const candidate = (which.stdout ?? '').split('\n').map((line) => line.trim()).filter(Boolean).at(-1);
-  if (which.error || which.status !== 0 || !candidate || !existsSync(candidate)) return undefined;
-  return probeVersion(candidate).clean ? realpathSync(candidate) : undefined;
+  if (which.error || which.status !== 0 || !candidate) return undefined;
+  let target;
+  try { target = realpathSync(candidate); } catch { return undefined; }
+  return probeVersion(target).clean ? target : undefined;
 }
 
-export function requirePi(binary = process.env.PI_LIFECYCLE_BIN || 'pi') {
+export function requirePi(binary = process.env.PI_LIFECYCLE_BIN) {
+  if (!binary) {
+    // Resolve through the version manager first: running an auto-installing `pi` launcher is neither
+    // read-only nor guaranteed to land on the version the scenarios must use.
+    const launcher = resolveLauncher();
+    if (launcher) return launcher;
+    binary = 'pi';
+  }
   const probe = probeVersion(binary);
   if (!probe.ok) {
     throw new Error(`Lifecycle tests REQUIRE Pi ${PI_VERSION} on PATH (or PI_LIFECYCLE_BIN). ` +
       `Install that exact version; tests never skip. Got: ${probe.detail}`);
   }
   if (probe.clean) return binary.includes('/') ? resolve(binary) : binary;
-  if (binary === 'pi') {
-    const launcher = resolveLauncher();
-    if (launcher) return launcher;
-  }
-  throw new Error(`Lifecycle tests REQUIRE Pi ${PI_VERSION} as a JSON-only RPC process. ${binary} reports ` +
-    `Pi ${PI_VERSION} but writes a launcher preamble to stdout, so Pi's RPC records would not be JSON and the ` +
-    `isolated HOME would make it re-resolve Pi (network install). Set PI_LIFECYCLE_BIN to the concrete Pi ` +
-    `${PI_VERSION} executable (mise users: \`mise which pi\`); tests never skip.`);
+  throw new Error(`Lifecycle tests REQUIRE Pi ${PI_VERSION} as a concrete JSON-only RPC executable. ` +
+    `${binary} printed "${probe.detail}" under the harness's isolated environment, so it is a launcher whose ` +
+    'preamble corrupts the RPC stream while it re-resolves Pi (network install). ' +
+    `Set PI_LIFECYCLE_BIN to the concrete Pi ${PI_VERSION} executable (mise users: \`mise which pi\`); tests never skip.`);
 }
 
 export async function runScenario(binary, scenario, mutation) {
@@ -72,10 +95,8 @@ export async function runScenario(binary, scenario, mutation) {
     '--system-prompt', 'Deterministic lifecycle test.',
   ], {
     cwd: scratch,
-    // Deliberately allowlist environment: no provider credentials or agent config leak.
     env: {
-      PATH: process.env.PATH, HOME: home, XDG_CONFIG_HOME: join(home, '.config'),
-      PI_CODING_AGENT_DIR: agentDir, PI_OFFLINE: '1', NO_COLOR: '1',
+      ...baseEnv(home, agentDir),
       PI_LIFECYCLE_SCENARIO: scenario, ...(mutation ? { PI_LIFECYCLE_MUTATION: mutation } : {}),
     },
     stdio: ['pipe', 'pipe', 'pipe'],
