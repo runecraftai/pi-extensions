@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { realpathSync } from 'node:fs';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 import test from 'node:test';
 import { assertToolIntact, PI_VERSION, requirePi, runScenario } from './driver.mjs';
 
@@ -234,6 +234,7 @@ test('version preflight accepts a concrete executable and rejects a preamble lau
     const concrete = join(scratch, 'pi-concrete');
     await writeFile(concrete, `#!/bin/sh\necho ${PI_VERSION}\n`, { mode: 0o755 });
     assert.equal(requirePi(concrete), resolve(concrete));
+    assert.equal(requirePi(relative(process.cwd(), concrete)), resolve(concrete));
 
     // Same version, but announced behind a launcher preamble: unusable for RPC.
     const wrapper = join(scratch, 'pi-wrapper');
@@ -267,6 +268,39 @@ test('version preflight resolves a launcher to the concrete executable mise mana
     delete process.env.PI_LIFECYCLE_BIN;
     delete process.env.PI_CODING_AGENT_DIR;
     assert.equal(requirePi(), realpathSync(concrete));
+  } finally {
+    process.env.PATH = path;
+    if (explicit !== undefined) process.env.PI_LIFECYCLE_BIN = explicit;
+    if (agentDir !== undefined) process.env.PI_CODING_AGENT_DIR = agentDir;
+    await rm(scratch, { recursive: true, force: true });
+  }
+});
+
+test('version preflight rejects a launcher the isolated environment exposes', async () => {
+  const scratch = await mkdtemp(resolve('.pi-lifecycle-probe-'));
+  const path = process.env.PATH;
+  const explicit = process.env.PI_LIFECYCLE_BIN;
+  const agentDir = process.env.PI_CODING_AGENT_DIR;
+  const rejection = () => {
+    try { requirePi(); } catch (error) { return error; }
+    assert.fail('launcher accepted as the RPC binary');
+  };
+  try {
+    const concrete = join(scratch, 'pi-concrete');
+    await writeFile(concrete, `#!/bin/sh\necho ${PI_VERSION}\n`, { mode: 0o755 });
+    const stale = join(scratch, 'pi-stale');
+    await writeFile(stale, '#!/bin/sh\necho 1.5.0\n', { mode: 0o755 });
+    await writeFile(join(scratch, 'pi'),
+      `#!/bin/sh\n[ -z "$PI_CODING_AGENT_DIR" ] || echo "launcher: pinned ${PI_VERSION}"\nexec "${concrete}" "$@"\n`,
+      { mode: 0o755 });
+    delete process.env.PI_LIFECYCLE_BIN;
+    delete process.env.PI_CODING_AGENT_DIR;
+
+    process.env.PATH = scratch;
+    assert.match(rejection().message, /launcher/);
+
+    await writeFile(join(scratch, 'mise'), `#!/bin/sh\necho "${stale}"\n`, { mode: 0o755 });
+    assert.match(rejection().message, /launcher/);
   } finally {
     process.env.PATH = path;
     if (explicit !== undefined) process.env.PI_LIFECYCLE_BIN = explicit;

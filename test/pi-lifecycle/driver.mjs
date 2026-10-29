@@ -57,14 +57,15 @@ export function requirePi(binary = process.env.PI_LIFECYCLE_BIN) {
     if (launcher) return launcher;
     binary = 'pi';
   }
-  const probe = probeVersion(binary);
+  const target = binary.includes('/') ? resolve(binary) : binary;
+  const probe = probeVersion(target);
   if (!probe.ok) {
     throw new Error(`Lifecycle tests REQUIRE Pi ${PI_VERSION} on PATH (or PI_LIFECYCLE_BIN). ` +
       `Install that exact version; tests never skip. Got: ${probe.detail}`);
   }
-  if (probe.clean) return binary.includes('/') ? resolve(binary) : binary;
+  if (probe.clean) return target;
   throw new Error(`Lifecycle tests REQUIRE Pi ${PI_VERSION} as a concrete JSON-only RPC executable. ` +
-    `${binary} printed "${probe.detail}" under the harness's isolated environment, so it is a launcher whose ` +
+    `${target} printed "${probe.detail}" under the harness's isolated environment, so it is a launcher whose ` +
     'preamble corrupts the RPC stream while it re-resolves Pi (network install). ' +
     `Set PI_LIFECYCLE_BIN to the concrete Pi ${PI_VERSION} executable (mise users: \`mise which pi\`); tests never skip.`);
 }
