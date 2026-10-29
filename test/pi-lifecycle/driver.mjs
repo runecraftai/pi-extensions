@@ -86,7 +86,8 @@ export function requirePi(binary = process.env.PI_LIFECYCLE_BIN) {
     `Set PI_LIFECYCLE_BIN to the concrete Pi ${PI_VERSION} executable (mise users: \`mise which pi\`); tests never skip.`);
 }
 
-export async function runScenario(binary, scenario, mutation) {
+export async function runScenario(binary, scenario, mutation, target = "fixture") {
+  const packageTarget = target === "package";
   // Keep every generated file inside the worktree, not the operator's ~/.pi.
   const scratch = await mkdtemp(resolve('.pi-lifecycle-'));
   const home = join(scratch, 'home');
@@ -114,7 +115,9 @@ export async function runScenario(binary, scenario, mutation) {
     cwd: scratch,
     env: {
       ...baseEnv(home, agentDir),
-      PI_LIFECYCLE_SCENARIO: scenario, ...(mutation ? { PI_LIFECYCLE_MUTATION: mutation } : {}),
+      PI_LIFECYCLE_SCENARIO: scenario,
+      ...(packageTarget ? { PI_LIFECYCLE_TARGET: "package", PI_ASYNC_PREFIX_COMPACTION_START_RATIO: "0.95" } : {}),
+      ...(mutation ? { PI_LIFECYCLE_MUTATION: mutation } : {}),
     },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
@@ -191,14 +194,14 @@ export async function runScenario(binary, scenario, mutation) {
         await until(() => has('summary.ready'));
       }
       if (scenario === 'I') await until(() => has('summary.failed'));
-      if (['A', 'B', 'E'].includes(scenario) || mutation === 'abort') {
+      if (!packageTarget && (['A', 'B', 'E'].includes(scenario) || mutation === 'abort')) {
         await until(() => has('session_compact'));
       } else {
         await command('prompt', { message: '/harness-release' });
       }
     }
     // The legacy async continuation is scheduled after the manual compaction callback.
-    if (['A', 'B', 'E'].includes(scenario) || mutation === 'abort') {
+    if (!packageTarget && (['A', 'B', 'E'].includes(scenario) || mutation === 'abort')) {
       await until(() => trace.some((record) => record.event === 'resume' && record.source === 'async'));
       await until(() => trace.filter((record) => record.event === 'agent_settled').length >= 2);
     } else {

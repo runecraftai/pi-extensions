@@ -1,3 +1,4 @@
 node_modules.vite
 node_modules/
+packages/pi-async-compaction-lite/dist/
 .pi-lifecycle-*/

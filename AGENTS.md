@@ -14,7 +14,7 @@ This file is the project's committed base for project-intrinsic agent knowledge:
 
 ## Lifecycle regression tests
 
-`npm test` includes the real-Pi fake-provider harness. It requires Pi **1.4.0** (`PI_LIFECYCLE_BIN` or a mise-managed install; it never probes a bare `PATH` launcher, and missing or mismatched versions fail, never skip). See `test/pi-lifecycle/README.md` for isolation, A–J contracts, and negative controls; this is not yet an upstream-package integration test.
+`npm test` includes the real-Pi fake-provider harness. It requires Pi **1.4.0** (`PI_LIFECYCLE_BIN` or a mise-managed install; it never probes a bare `PATH` launcher, and missing or mismatched versions fail, never skip). See `test/pi-lifecycle/README.md` for isolation, A–J contracts, and negative controls. `package.test.mjs` runs A–J against `@runecraft/pi-async-compaction-lite`; the baseline recon policies remain as negative controls.
 
 ## Maintaining this file
 

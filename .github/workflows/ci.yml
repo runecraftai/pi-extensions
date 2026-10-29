@@ -24,7 +24,9 @@ jobs:
         run: |
           npm install --global --ignore-scripts @earendil-works/pi-coding-agent@1.4.0
           echo "PI_LIFECYCLE_BIN=$(command -v pi)" >> "$GITHUB_ENV"
+      - run: npm run build
       - run: npm run typecheck
+      - run: npm run lint
       - run: npm test
       - run: npm run test:release
 
@@ -32,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        package: [packages/pi-tui, packages/graphify-pi, packages/pi-polish]
+        package: [packages/pi-tui, packages/graphify-pi, packages/pi-polish, packages/pi-async-compaction-lite]
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af

@@ -1,4 +1,5 @@
-// Test-only policies, not an implementation or copy of pi-async-compaction.
+// Baseline recon policies plus the real Runecraft package integration.
+import asyncCompaction from "../../packages/pi-async-compaction-lite/src/index.ts";
 import { createAssistantMessageEventStream, PI_AI_VERSION } from "@earendil-works/pi-ai";
 import { SettingsManager, VERSION as PI_CODING_AGENT_VERSION } from "@earendil-works/pi-coding-agent";
 import net from "node:net";
@@ -8,7 +9,8 @@ import tls from "node:tls";
 
 const scenario = process.env.PI_LIFECYCLE_SCENARIO;
 const mutation = process.env.PI_LIFECYCLE_MUTATION;
-const trace = (event, data = {}) => process.stderr.write(`LIFECYCLE ${JSON.stringify({ event, ...data })}\n`);
+const usePackage = process.env.PI_LIFECYCLE_TARGET === "package";
+const trace = (event, data = {}) => process.stderr.write(`LIFECYCLE ${JSON.stringify({ ...data, event })}\n`);
 const denyNetwork = () => {
   trace("network.forbidden");
   throw new Error("Lifecycle harness forbids network access");
@@ -26,7 +28,7 @@ function gate() {
 export default function (pi) {
   const summaryGate = gate();
   const toolGate = gate();
-  const force = ["A", "B", "E"].includes(scenario) || mutation === "abort";
+  const force = !usePackage && (["A", "B", "E"].includes(scenario) || mutation === "abort");
   const resilience = ["A", "E", "G", "H"].includes(scenario);
   const sentinel = ["E", "F", "G", "J"].includes(scenario);
   const guardrail = ["C", "G"].includes(scenario);
@@ -39,6 +41,56 @@ export default function (pi) {
   let boundaryApplied = false;
   let backgroundJob;
   let applyJob;
+  let packageCommand;
+  let packageContext;
+  let packagePending = false;
+
+  if (usePackage) {
+    const observePackage = (event) => {
+      if (!packageContext) {
+        trace("package.context_missing", { phase: event });
+        return {};
+      }
+      return { settings: settings(packageContext), idle: packageContext.isIdle() };
+    };
+    pi.events.on("runecraft:async-compaction", (event) => {
+      if (event.event === "started") {
+        packagePending = true;
+        trace("summary.started", observePackage("started"));
+      } else if (event.event === "ready") {
+        trace("summary.ready", observePackage("ready"));
+        if (mutation === "abort" && packageContext) {
+          trace("ctx.abort");
+          void packageContext.abort();
+        }
+      } else if (event.event === "handed_off") {
+        trace("summary.handed_off");
+      } else if (event.event === "failed") {
+        packagePending = false;
+        trace("summary.failed", { error: event.error });
+      } else if (event.event === "invalidated") {
+        packagePending = false;
+        trace("summary.invalidated", { reason: event.reason.toUpperCase() });
+      }
+    });
+    pi.events.on("busy", (event) => trace("package.busy", event));
+    asyncCompaction({
+      ...pi,
+      on(event, handler) {
+        return pi.on(event, (data, ctx) => {
+          packageContext ??= ctx;
+          return handler(data, {
+            ...ctx,
+            abort() { trace("ctx.abort"); return ctx.abort(); },
+          });
+        });
+      },
+      registerCommand(name, command) {
+        if (name === "async-compact-now") packageCommand = command.handler;
+        pi.registerCommand(name, command);
+      },
+    });
+  }
 
   // An in-process transport: no HTTP server, real credential, OAuth, or model service.
   const provider = {
@@ -51,8 +103,10 @@ export default function (pi) {
     }],
     streamSimple(model, context, options) {
       const stream = createAssistantMessageEventStream();
-      const isBackground = context.messages.some((message) =>
-        message.role === "user" && JSON.stringify(message.content).includes("BACKGROUND_SUMMARY"));
+      const isBackground = usePackage
+        ? packagePending && options?.cacheRetention === "none"
+        : context.messages.some((message) =>
+          message.role === "user" && JSON.stringify(message.content).includes("BACKGROUND_SUMMARY"));
       const kind = isBackground ? "background" : options?.cacheRetention === "none" ? "native-summary" : "agent";
       if (kind === "agent" && active) workRequests++;
       trace("provider.request", { kind, model: `${model.provider}/${model.id}`, messages: context.messages.map((message) => ({
@@ -71,6 +125,7 @@ export default function (pi) {
         try {
           await options?.onPayload?.({ kind, model: model.id });
           stream.push({ type: "start", partial: message });
+          if (isBackground && scenario === "I") throw new Error("Synthetic background provider failure");
           if (isBackground) await summaryGate.promise;
           if (options?.signal?.aborted) throw new Error("Fake request aborted");
           if (kind === "agent" && active && workRequests === 1) {
@@ -136,7 +191,10 @@ export default function (pi) {
     parameters: { type: "object", properties: {}, additionalProperties: false },
     async execute(toolCallId, _params, signal, _onUpdate, ctx) {
       trace("tool.started", { toolCallId });
-      if (background) {
+      if (background && usePackage) {
+        packageContext = ctx;
+        await packageCommand("", ctx);
+      } else if (background) {
         backgroundJob = startBackground(ctx);
         backgroundJob.catch((error) => trace("fixture.error", { error: String(error) }));
       }
@@ -159,7 +217,7 @@ export default function (pi) {
   pi.on("session_before_compact", (event) => {
     trace("session_before_compact", { reason: event.reason, settings: event.preparation.settings });
     if (sentinel && event.reason !== "manual") trace("busy", { state: "busy", activity: "compaction" });
-    if (!ready) return;
+    if (usePackage || !ready) return;
     const effective = event.preparation.settings;
     if (snapshot.settings.reserveTokens !== effective.reserveTokens || snapshot.settings.keepRecentTokens !== effective.keepRecentTokens) {
       trace("summary.invalidated", { reason: "SETTINGS_CHANGED" });
@@ -197,7 +255,7 @@ export default function (pi) {
     applyJob.catch((error) => trace("fixture.error", { error: String(error) }));
     return { block: true, reason: "Synthetic 60% guardrail" };
   });
-  if (scenario === "H") pi.on("turn_end", () => {
+  if (scenario === "H" && !usePackage) pi.on("turn_end", () => {
     if (!ready || boundaryApplied) return;
     boundaryApplied = true;
     trace("boundary.compaction");
