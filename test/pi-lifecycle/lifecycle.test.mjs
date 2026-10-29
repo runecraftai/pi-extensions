@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { realpathSync } from 'node:fs';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join, relative, resolve } from 'node:path';
 import test from 'node:test';
 import { assertToolIntact, PI_VERSION, requirePi, runScenario } from './driver.mjs';
@@ -278,31 +278,51 @@ test('version preflight resolves a launcher to the concrete executable mise mana
   }
 });
 
-test('version preflight rejects a launcher the isolated environment exposes', async () => {
+test('version preflight never executes the PATH pi launcher when resolution fails', async () => {
   const scratch = await mkdtemp(resolve('.pi-lifecycle-probe-'));
   const path = process.env.PATH;
   const explicit = process.env.PI_LIFECYCLE_BIN;
   const agentDir = process.env.PI_CODING_AGENT_DIR;
+  const marker = join(scratch, 'launcher-invocations');
   const rejection = () => {
     try { requirePi(); } catch (error) { return error; }
-    assert.fail('launcher accepted as the RPC binary');
+    assert.fail('PATH launcher accepted as the RPC binary');
+  };
+  const launcherRan = async () => {
+    try { return `PATH pi launcher executed: ${await readFile(marker, 'utf8')}`; } catch { return false; }
   };
   try {
-    const concrete = join(scratch, 'pi-concrete');
-    await writeFile(concrete, `#!/bin/sh\necho ${PI_VERSION}\n`, { mode: 0o755 });
+    const bare = join(scratch, 'bare');
+    await mkdir(bare, { recursive: true });
     const stale = join(scratch, 'pi-stale');
     await writeFile(stale, '#!/bin/sh\necho 1.5.0\n', { mode: 0o755 });
+    // Any execution - version probe or RPC spawn - records the invocation.
     await writeFile(join(scratch, 'pi'),
-      `#!/bin/sh\n[ -z "$PI_CODING_AGENT_DIR" ] || echo "launcher: pinned ${PI_VERSION}"\nexec "${concrete}" "$@"\n`,
-      { mode: 0o755 });
+      `#!/bin/sh\necho "$@" >> "${marker}"\necho ${PI_VERSION}\n`, { mode: 0o755 });
     delete process.env.PI_LIFECYCLE_BIN;
     delete process.env.PI_CODING_AGENT_DIR;
 
+    // No `mise` on PATH: the launcher must not be probed in its place.
     process.env.PATH = scratch;
-    assert.match(rejection().message, /launcher/);
+    const noMise = rejection();
+    assert.match(noMise.message, /never execute a bare PATH `pi` launcher/);
+    assert.match(noMise.message, /mise which pi/);
+    assert.match(noMise.message, /PI_LIFECYCLE_BIN/);
+    assert.equal(await launcherRan(), false);
 
+    // Neither `mise` nor `pi` on PATH: still a clear diagnostic, never a skip.
+    process.env.PATH = bare;
+    assert.match(rejection().message, /PI_LIFECYCLE_BIN/);
+    assert.equal(await launcherRan(), false);
+
+    // `mise` resolves a concrete Pi of the wrong version: report that candidate, not a PATH probe.
     await writeFile(join(scratch, 'mise'), `#!/bin/sh\necho "${stale}"\n`, { mode: 0o755 });
-    assert.match(rejection().message, /launcher/);
+    process.env.PATH = scratch;
+    const wrongVersion = rejection();
+    assert.match(wrongVersion.message, /mise-managed candidate/);
+    assert.match(wrongVersion.message, /1\.5\.0/);
+    assert.match(wrongVersion.message, /PI_LIFECYCLE_BIN/);
+    assert.equal(await launcherRan(), false);
   } finally {
     process.env.PATH = path;
     if (explicit !== undefined) process.env.PI_LIFECYCLE_BIN = explicit;

@@ -43,19 +43,28 @@ function probeVersion(binary) {
 function resolveLauncher() {
   const which = spawnSync('mise', ['which', 'pi'], { encoding: 'utf8', timeout: 5000 });
   const candidate = (which.stdout ?? '').split('\n').map((line) => line.trim()).filter(Boolean).at(-1);
-  if (which.error || which.status !== 0 || !candidate) return undefined;
+  if (which.error) return { detail: `\`mise which pi\` could not be queried (${which.error.message})` };
+  if (which.status !== 0 || !candidate) {
+    return { detail: `\`mise which pi\` resolved no Pi install (${which.stderr?.trim() || `exit ${which.status}`})` };
+  }
   let target;
-  try { target = realpathSync(candidate); } catch { return undefined; }
-  return probeVersion(target).clean ? target : undefined;
+  try { target = realpathSync(candidate); } catch {
+    return { detail: `\`mise which pi\` reported ${candidate}, which is not a resolvable file` };
+  }
+  const probe = probeVersion(target);
+  if (probe.ok && probe.clean) return { target };
+  return { detail: `the mise-managed candidate ${target} is not a concrete Pi ${PI_VERSION} executable (${probe.detail})` };
 }
 
 export function requirePi(binary = process.env.PI_LIFECYCLE_BIN) {
   if (!binary) {
-    // Resolve through the version manager first: running an auto-installing `pi` launcher is neither
-    // read-only nor guaranteed to land on the version the scenarios must use.
+    // Never fall back to a bare `pi` from PATH: that launcher may re-resolve and install Pi, which is
+    // neither read-only nor guaranteed to land on the version the scenarios must use.
     const launcher = resolveLauncher();
-    if (launcher) return launcher;
-    binary = 'pi';
+    if (launcher.target) return launcher.target;
+    throw new Error(`Lifecycle tests REQUIRE Pi ${PI_VERSION} and never execute a bare PATH \`pi\` launcher, ` +
+      `which can re-resolve and install Pi over the network. ${launcher.detail}. Install Pi ${PI_VERSION} and ` +
+      'set PI_LIFECYCLE_BIN to the concrete executable (`mise which pi`); tests never skip.');
   }
   const target = binary.includes('/') ? resolve(binary) : binary;
   const probe = probeVersion(target);
