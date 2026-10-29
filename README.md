@@ -9,14 +9,13 @@ Monorepo of [pi](https://pi.dev) extensions by Runecraft.
 | [`packages/pi-tui`](./packages/pi-tui) | Customizable TUI — header, footer, editor, context view | `pi install npm:@runecraft/pi-tui` |
 | [`packages/graphify-pi`](./packages/graphify-pi) | Knowledge-graph query tools (graphify CLI wrapper) | `pi install npm:@runecraft/graphify-pi` |
 | [`packages/pi-polish`](./packages/pi-polish) | Phased working indicator, grouped tool output, and highlighted diffs | `pi install npm:@runecraft/pi-polish` |
-
 | [`packages/pi-async-compaction-lite`](./packages/pi-async-compaction-lite) | Idle-only background compaction; Pi 1.4.x, private pending publication | `pi -e ./packages/pi-async-compaction-lite` |
 
 > **Forward note:** [graphify-pi](https://github.com/runecraftai/graphify-pi) will be consolidated into this monorepo later. No graphify-related work is planned for this phase.
 
 ## Getting Started
 
-This is a pnpm/npm workspace monorepo. Each package under `packages/` is a standalone pi extension that can be installed via `pi install` or loaded locally.
+This is a pnpm/npm workspace monorepo. Each package under `packages/` is a standalone pi extension; published packages install via `pi install`, and any package can be loaded locally.
 
 ### Local package-root invocation
 

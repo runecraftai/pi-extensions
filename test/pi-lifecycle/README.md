@@ -87,6 +87,9 @@ Authority: the approved `recon-squad-async-compaction-2/report.md`, sections 2,
 D to the model-settings defect in F9 (also summarized by executive finding F5).
 `compaction.modelOverrides` configures token budgets, not a different model.
 
+Baseline (`lifecycle.test.mjs`) contracts. `package.test.mjs` deviations for
+A/B/E/H are described above.
+
 | Scenario | Contract |
 | --- | --- |
 | A | Unsafe async + resilience: tool aborted, manual handoff, two resumes. |
@@ -100,8 +103,9 @@ D to the model-settings defect in F9 (also summarized by executive finding F5).
 | I | Keyless background preflight fails; tool survives and native compaction succeeds. |
 | J | Ready summary completes mid-tool, waits for native threshold, preserves the tool pair, emits busy-compaction, sends no `continue`. |
 
-A/B/E deliberately assert the **observed unsafe behavior**, not its safety.
-The separate J safety contract rejects exactly that behavior. Native compaction
+The baseline A/B/E deliberately assert the **observed unsafe behavior**, not
+its safety; the package A/B/E assert that the tool survives. The J safety
+contract rejects exactly that behavior in both suites. Native compaction
 makes two fake summary requests here because the tiny keep budget splits the
 user-message span; ready-summary handoff makes none.
 
