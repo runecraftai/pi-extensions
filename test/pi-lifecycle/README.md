@@ -8,18 +8,18 @@ and fails rather than skipping if Pi is missing or incompatible. It never probes
 a bare `pi` from `PATH`, whose launcher can re-resolve and install Pi over the
 network.
 
-Launcher wrappers and version-manager shims are resolved to the concrete Pi
-executable they manage, because a launcher's stdout preamble would corrupt the
-RPC stream and, under the harness's isolated `HOME`, re-resolve and re-download
-Pi. The harness validates a launcher candidate under that same isolated
-environment before spawning it, and asks mise's read-only `mise which pi` for
-the install it manages rather than executing an auto-installing `pi` launcher.
-When mise is absent or does not provide Pi 1.4.0, set `PI_LIFECYCLE_BIN` to the
-concrete executable's path (`mise which pi`, or the install path from a global
-npm/pnpm bin directory); a bare `pi` name is rejected instead of being resolved
-through `PATH`. Version-manager shims are not usable here: a mise shim is a
-symlink to the mise binary, so `readlink -f "$(command -v pi)"` yields mise
-itself rather than the install it manages.
+Pi is resolved through mise's read-only `mise which pi`, which returns the
+install path rather than a launcher; that candidate is realpath-resolved and
+validated under the harness's isolated environment before spawning, because a
+launcher's stdout preamble would corrupt the RPC stream and, under the isolated
+`HOME`, re-resolve and re-download Pi. When mise is absent or does not provide
+Pi 1.4.0, set `PI_LIFECYCLE_BIN` to the concrete executable's path (`mise which
+pi`, or the install path from a global npm/pnpm bin directory); a bare `pi` name
+is rejected instead of being resolved through `PATH`, and a `PI_LIFECYCLE_BIN`
+that behaves as a launcher is rejected rather than resolved. Version-manager
+shims are not usable here: a mise shim is a symlink to the mise binary, so
+`readlink -f "$(command -v pi)"` yields mise itself rather than the install it
+manages.
 
 CI installs the pinned Pi CLI and exports it as `PI_LIFECYCLE_BIN` before
 running `npm test`. Pi resolves extension
