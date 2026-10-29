@@ -300,12 +300,18 @@ test('version preflight never executes the PATH pi launcher when resolution fail
   const explicit = process.env.PI_LIFECYCLE_BIN;
   const agentDir = process.env.PI_CODING_AGENT_DIR;
   const marker = join(scratch, 'launcher-invocations');
+  const miseMarker = join(scratch, 'mise-invocations');
   const rejection = () => {
     try { requirePi(); } catch (error) { return error; }
     assert.fail('PATH launcher accepted as the RPC binary');
   };
   const launcherRan = async () => {
     try { return `PATH pi launcher executed: ${await readFile(marker, 'utf8')}`; } catch { return false; }
+  };
+  // Every mise invocation is recorded, so an install/resolve subcommand cannot hide behind a
+  // `which pi` result that still yields the stale candidate below.
+  const miseRan = async () => {
+    try { return (await readFile(miseMarker, 'utf8')).split('\n').filter(Boolean); } catch { return []; }
   };
   try {
     const bare = join(scratch, 'bare');
@@ -324,6 +330,7 @@ test('version preflight never executes the PATH pi launcher when resolution fail
     assert.match(bareName.message, /mise which pi/);
     assert.match(bareName.message, /never skip/);
     assert.equal(await launcherRan(), false);
+    assert.deepEqual(await miseRan(), [], 'resolution ran mise before validating the PI_LIFECYCLE_BIN name');
 
     delete process.env.PI_LIFECYCLE_BIN;
     delete process.env.PI_CODING_AGENT_DIR;
@@ -335,20 +342,24 @@ test('version preflight never executes the PATH pi launcher when resolution fail
     assert.match(noMise.message, /mise which pi/);
     assert.match(noMise.message, /PI_LIFECYCLE_BIN/);
     assert.equal(await launcherRan(), false);
+    assert.deepEqual(await miseRan(), []);
 
     // Neither `mise` nor `pi` on PATH: still a clear diagnostic, never a skip.
     process.env.PATH = bare;
     assert.match(rejection().message, /PI_LIFECYCLE_BIN/);
     assert.equal(await launcherRan(), false);
+    assert.deepEqual(await miseRan(), []);
 
     // `mise` resolves a concrete Pi of the wrong version: report that candidate, not a PATH probe.
-    await writeFile(join(scratch, 'mise'), `#!/bin/sh\necho "${stale}"\n`, { mode: 0o755 });
+    await writeFile(join(scratch, 'mise'),
+      `#!/bin/sh\necho "$@" >> "${miseMarker}"\necho "${stale}"\n`, { mode: 0o755 });
     process.env.PATH = scratch;
     const wrongVersion = rejection();
     assert.match(wrongVersion.message, /mise-managed candidate/);
     assert.match(wrongVersion.message, /1\.5\.0/);
     assert.match(wrongVersion.message, /PI_LIFECYCLE_BIN/);
     assert.equal(await launcherRan(), false);
+    assert.deepEqual(await miseRan(), ['which pi'], 'resolution invoked mise beyond the read-only `which pi` query');
   } finally {
     process.env.PATH = path;
     if (explicit !== undefined) process.env.PI_LIFECYCLE_BIN = explicit;

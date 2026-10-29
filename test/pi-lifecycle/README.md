@@ -15,9 +15,11 @@ Pi. The harness validates a launcher candidate under that same isolated
 environment before spawning it, and asks mise's read-only `mise which pi` for
 the install it manages rather than executing an auto-installing `pi` launcher.
 When mise is absent or does not provide Pi 1.4.0, set `PI_LIFECYCLE_BIN` to the
-concrete executable's path (`mise which pi`, or `readlink -f "$(command -v pi)"`
-when only a shim is on `PATH`); a bare `pi` name is rejected instead of being
-resolved through `PATH`.
+concrete executable's path (`mise which pi`, or the install path from a global
+npm/pnpm bin directory); a bare `pi` name is rejected instead of being resolved
+through `PATH`. Version-manager shims are not usable here: a mise shim is a
+symlink to the mise binary, so `readlink -f "$(command -v pi)"` yields mise
+itself rather than the install it manages.
 
 CI installs the pinned Pi CLI and exports it as `PI_LIFECYCLE_BIN` before
 running `npm test`. Pi resolves extension

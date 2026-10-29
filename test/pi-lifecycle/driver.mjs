@@ -69,15 +69,15 @@ export function requirePi(binary = process.env.PI_LIFECYCLE_BIN) {
   if (!binary.includes('/')) {
     throw new Error(`Lifecycle tests REQUIRE Pi ${PI_VERSION} at a concrete executable path, not the bare name ` +
       `"${binary}", which would probe PATH and may run a launcher that installs Pi over the network. ` +
-      'Set PI_LIFECYCLE_BIN to the concrete path from `mise which pi` (or `readlink -f "$(command -v pi)"`); ' +
+      'Set PI_LIFECYCLE_BIN to the concrete path from `mise which pi` (shims are launchers, not binaries); ' +
       'tests never skip.');
   }
   const target = resolve(binary);
   const probe = probeVersion(target);
   if (!probe.ok) {
     throw new Error(`Lifecycle tests REQUIRE Pi ${PI_VERSION} at the PI_LIFECYCLE_BIN executable. ` +
-      'Install that exact version, or resolve the version-manager shim with `mise which pi` / ' +
-      `\`readlink -f "$(command -v pi)"\`; tests never skip. Got: ${probe.detail}`);
+      'Install that exact version, or resolve the version-manager install path with `mise which pi`; ' +
+      `tests never skip. Got: ${probe.detail}`);
   }
   if (probe.clean) return target;
   throw new Error(`Lifecycle tests REQUIRE Pi ${PI_VERSION} as a concrete JSON-only RPC executable. ` +
