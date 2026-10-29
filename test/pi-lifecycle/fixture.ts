@@ -10,7 +10,7 @@ import tls from "node:tls";
 const scenario = process.env.PI_LIFECYCLE_SCENARIO;
 const mutation = process.env.PI_LIFECYCLE_MUTATION;
 const usePackage = process.env.PI_LIFECYCLE_TARGET === "package";
-const trace = (event, data = {}) => process.stderr.write(`LIFECYCLE ${JSON.stringify({ event, ...data })}\n`);
+const trace = (event, data = {}) => process.stderr.write(`LIFECYCLE ${JSON.stringify({ ...data, event })}\n`);
 const denyNetwork = () => {
   trace("network.forbidden");
   throw new Error("Lifecycle harness forbids network access");
@@ -48,7 +48,7 @@ export default function (pi) {
   if (usePackage) {
     const observePackage = (event) => {
       if (!packageContext) {
-        trace("package.context_missing", { event });
+        trace("package.context_missing", { phase: event });
         return {};
       }
       return { settings: settings(packageContext), idle: packageContext.isIdle() };
