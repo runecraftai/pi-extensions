@@ -232,6 +232,7 @@ test('version preflight fails loudly for missing and incompatible Pi', () => {
 
 test('version preflight accepts a concrete executable and rejects a preamble launcher', async () => {
   const scratch = await mkdtemp(resolve('.pi-lifecycle-probe-'));
+  const agentDir = process.env.PI_CODING_AGENT_DIR;
   try {
     const concrete = join(scratch, 'pi-concrete');
     await writeFile(concrete, `#!/bin/sh\necho ${PI_VERSION}\n`, { mode: 0o755 });
@@ -254,11 +255,15 @@ test('version preflight accepts a concrete executable and rejects a preamble lau
     await writeFile(shim,
       `#!/bin/sh\n[ -z "$PI_CODING_AGENT_DIR" ] || echo "launcher: pinned ${PI_VERSION}"\n` +
       `exec "${concrete}" "$@"\n`, { mode: 0o755 });
+    delete process.env.PI_CODING_AGENT_DIR;
+    assert.equal(process.env.PI_CODING_AGENT_DIR, undefined,
+      'shim must be silent under the operator environment for this assertion to discriminate');
     let shimError;
     try { requirePi(shim); } catch (failure) { shimError = failure; }
     assert.ok(shimError, 'isolated-environment launcher was accepted as the RPC binary');
     assert.match(shimError.message, /launcher/);
   } finally {
+    if (agentDir !== undefined) process.env.PI_CODING_AGENT_DIR = agentDir;
     await rm(scratch, { recursive: true, force: true });
   }
 });
