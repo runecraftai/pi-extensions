@@ -527,6 +527,7 @@ export default function (pi: ExtensionAPI) {
 		if (msg.role === "assistant" && (msg.content ?? []).some((c: any) => c.type === "text" && c.text.trim())) current = undefined;
 	});
 	pi.on("tool_execution_start", async (event) => {
+		if (event.parentToolCallId) return;
 		if (!kindOf(event.toolName)) {
 			current = undefined;
 			return;

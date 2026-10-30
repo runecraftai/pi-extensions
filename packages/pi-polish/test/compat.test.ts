@@ -269,6 +269,32 @@ test("codemode calls fold into one compact row and expand to bounded full code",
   assert.equal(stripTerminalSequences(grouped[0]).trim(), "Ran 2 code blocks");
 });
 
+test("codemode's own tool calls stay out of the group", async (t) => {
+  const h = harness(t);
+  await h.emit("session_start");
+  await h.emit("agent_start");
+  const call = h.tool("codemode");
+  const args = { code: "await tools.bash({ command: 'echo hi' });" };
+  const context = { toolCallId: "code-inner", invalidate() {}, executionStarted: true, isPartial: true, args };
+  await h.emit("tool_execution_start", { toolName: "codemode", toolCallId: "code-inner", args });
+  for (const toolName of ["bash", "read", "edit"]) {
+    const toolCallId = `code-inner/${toolName}`;
+    await h.emit("tool_execution_start", { toolName, toolCallId, parentToolCallId: "code-inner", args: { command: "echo hi", path: "a.ts" } });
+    await h.emit("tool_execution_update", { toolCallId, parentToolCallId: "code-inner", partialResult: { content: [{ type: "text", text: "inner output\n" }] } });
+    await h.emit("tool_execution_end", { toolCallId, parentToolCallId: "code-inner", isError: toolName === "edit" });
+  }
+  await h.emit("tool_execution_end", { toolCallId: "code-inner", isError: false });
+  const single = call.renderCall(args, theme, context).render(100);
+  assert.equal(single.length, 1);
+  assert.equal(stripTerminalSequences(single[0]).trim(), "Ran 1 code block");
+
+  await h.emit("tool_execution_start", { toolName: "codemode", toolCallId: "code-inner-2", args: { code: "return 1;" } });
+  await h.emit("tool_execution_end", { toolCallId: "code-inner-2", isError: false });
+  const grouped = call.renderCall(args, theme, context).render(100);
+  assert.equal(grouped.length, 1);
+  assert.equal(stripTerminalSequences(grouped[0]).trim(), "Ran 2 code blocks");
+});
+
 test("codemode results stay empty while collapsed and keep pi's expanded view", async (t) => {
   const h = harness(t);
   await h.emit("session_start");
