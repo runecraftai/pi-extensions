@@ -576,7 +576,7 @@ export default function (pi: ExtensionAPI) {
 			// The dot pulses once a second while the group runs, in step with the seconds counter
 			const pulse = secs % 2 ? "dim" : "accent";
 			const head = theme.fg(pulse, `${MARK} `) + theme.fg("toolTitle", `${summary(group, true)}…`) + theme.fg("dim", ` · ${secs}s`) + failNote;
-			if (active.kind === "code") return oneLine([head]);
+			if (active.kind === "code") return oneLine([head + theme.fg("dim", `  └ ${active.label}`)]);
 			const latest = active.latest ? [theme.fg("dim", `    ${active.latest}`)] : [];
 			// pi-background marks commands that ctrl+b can move to the background
 			const movable = (globalThis as any)[Symbol.for("pi-background.movable")]?.has(active.id) ? [theme.fg("dim", "    (ctrl+b to run in background)")] : [];
@@ -681,9 +681,11 @@ export default function (pi: ExtensionAPI) {
 	pi.registerToolRenderer((toolName, next) => {
 		if (renderers[toolName] || !kindOf(toolName)) return renderers[toolName] ?? next();
 		const own = groupedTool(toolName);
-		if (kindOf(toolName) !== "mcp") return own;
-		// Expanded MCP results keep pi's own view, which shows images and limits long one-line JSON. It gets
-		// no lastComponent, since that may be the empty component drawn while the row was collapsed.
+		const kind = kindOf(toolName);
+		if (kind !== "mcp" && kind !== "code") return own;
+		// Expanded results keep pi's own view, which shows images, limits long one-line JSON, and lists
+		// codemode's inner calls with their cost and full output. It gets no lastComponent, since that may
+		// be the empty component drawn while the row was collapsed.
 		const pis = next()?.renderResult;
 		return {
 			...own,

@@ -244,9 +244,12 @@ test("codemode calls fold into one compact row and expand to bounded full code",
 
   await h.emit("agent_start");
   await h.emit("tool_execution_start", { toolName: "codemode", toolCallId: "code-one", args });
-  const running = call.renderCall(args, theme, context).render(100);
+  const running = call.renderCall(args, theme, context).render(200);
   assert.equal(running.length, 1);
-  assert.equal(stripTerminalSequences(running[0]).includes("const value"), false);
+  const runningText = stripTerminalSequences(running[0]);
+  assert.ok(runningText.includes("Running 1 code block"));
+  assert.ok(runningText.includes(`Codemode ${firstLine.slice(0, 60)}`));
+  assert.equal(runningText.includes("const line0"), false);
   await h.emit("tool_execution_end", { toolCallId: "code-one", isError: false });
   const collapsed = call.renderCall(args, theme, context).render(100);
   assert.equal(collapsed.length, 1);
@@ -264,6 +267,22 @@ test("codemode calls fold into one compact row and expand to bounded full code",
   const grouped = call.renderCall(args, theme, context).render(100);
   assert.equal(grouped.length, 1);
   assert.equal(stripTerminalSequences(grouped[0]).trim(), "Ran 2 code blocks");
+});
+
+test("codemode results stay empty while collapsed and keep pi's expanded view", async (t) => {
+  const h = harness(t);
+  await h.emit("session_start");
+  const context = { toolCallId: "code-result", invalidate() {}, executionStarted: true, isPartial: false };
+  const result = { content: [{ type: "text", text: "script output" }], details: { calls: [{ name: "bash" }, { name: "read" }] } };
+  const piRenderer = {
+    renderResult: (r: any, options: any) => ({
+      invalidate() {},
+      render: () => [`pi:${r.details.calls.length}:${options.expanded}`],
+    }),
+  };
+  const renderers = h.tool("codemode", () => piRenderer);
+  assert.deepEqual(renderers.renderResult(result, { expanded: false }, theme, context).render(80), []);
+  assert.deepEqual(renderers.renderResult(result, { expanded: true }, theme, context).render(80), ["pi:2:true"]);
 });
 
 test("command helper shortens only cwd prefixes and preserves other commands", () => {
