@@ -57,12 +57,13 @@ const DIFF_PREVIEW_LINES = 16;
 const BG_RESET = "\x1b[49m";
 const FG_RESET = "\x1b[39m";
 
-type Kind = "bash" | "read" | "search" | "list" | "tools" | "mcp";
-const KIND_OF: Record<string, Kind> = { bash: "bash", read: "read", grep: "search", find: "search", ls: "list", tool_search: "tools" };
+type Kind = "bash" | "code" | "read" | "search" | "list" | "tools" | "mcp";
+const KIND_OF: Record<string, Kind> = { bash: "bash", codemode: "code", read: "read", grep: "search", find: "search", ls: "list", tool_search: "tools" };
 // Pi names MCP tools mcp__<server>__<tool>
 const kindOf = (toolName: string): Kind | undefined => KIND_OF[toolName] ?? (toolName.startsWith("mcp__") ? "mcp" : undefined);
 const VERBS: Record<Kind, [done: string, running: string, one: string, many: string]> = {
 	bash: ["Ran", "Running", "shell command", "shell commands"],
+	code: ["Ran", "Running", "code block", "code blocks"],
 	read: ["Read", "Reading", "file", "files"],
 	search: ["Searched", "Searching", "pattern", "patterns"],
 	list: ["Listed", "Listing", "directory", "directories"],
@@ -108,6 +109,10 @@ function label(toolName: string, args: any, cwd: string): string {
 	switch (toolName) {
 		case "bash":
 			return `$ ${shortCommand(String(args?.command ?? ""), cwd)}`;
+		case "codemode": {
+			const firstLine = String(args?.code ?? "").split("\n").map((line) => line.trim()).find(Boolean);
+			return `Codemode${firstLine ? ` ${firstLine.slice(0, 60)}` : ""}`;
+		}
 		case "read":
 			return `Read ${shortPath(args?.path, cwd)}`;
 		case "grep":
@@ -522,6 +527,8 @@ export default function (pi: ExtensionAPI) {
 		if (msg.role === "assistant" && (msg.content ?? []).some((c: any) => c.type === "text" && c.text.trim())) current = undefined;
 	});
 	pi.on("tool_execution_start", async (event) => {
+		// Nested calls belong to their parent's expanded view, not a top-level group
+		if (event.parentToolCallId) return;
 		if (!kindOf(event.toolName)) {
 			current = undefined;
 			return;
@@ -571,6 +578,7 @@ export default function (pi: ExtensionAPI) {
 			// The dot pulses once a second while the group runs, in step with the seconds counter
 			const pulse = secs % 2 ? "dim" : "accent";
 			const head = theme.fg(pulse, `${MARK} `) + theme.fg("toolTitle", `${summary(group, true)}…`) + theme.fg("dim", ` · ${secs}s`) + failNote;
+			if (active.kind === "code") return oneLine([head + theme.fg("dim", `  └ ${active.label}`)]);
 			const latest = active.latest ? [theme.fg("dim", `    ${active.latest}`)] : [];
 			// pi-background marks commands that ctrl+b can move to the background
 			const movable = (globalThis as any)[Symbol.for("pi-background.movable")]?.has(active.id) ? [theme.fg("dim", "    (ctrl+b to run in background)")] : [];
@@ -608,9 +616,10 @@ export default function (pi: ExtensionAPI) {
 		renderCall(args: any, theme, context) {
 			const grouped = renderGrouped(context.toolCallId, theme, context);
 			if (grouped) return grouped;
-			// Expanded, a shell command shows in full, with its cd and every line; collapsed rows keep the short label
-			const command = isOpen(context) && toolName === "bash" ? String(args?.command ?? "").trim().split("\n") : undefined;
-			const text = command ? `$ ${command.slice(0, 60).join("\n")}${command.length > 60 ? `\n... ${command.length - 60} more lines` : ""}` : truncateToWidth(label(toolName, args, cwd), 400);
+			// Expanded, a shell command or code block shows in full; collapsed rows keep the short label
+			const source = toolName === "bash" ? args?.command : toolName === "codemode" ? args?.code : undefined;
+			const lines = isOpen(context) && source !== undefined ? String(source).trim().split("\n") : undefined;
+			const text = lines ? `${toolName === "bash" ? "$ " : ""}${lines.slice(0, 60).join("\n")}${lines.length > 60 ? `\n... ${lines.length - 60} more lines` : ""}` : truncateToWidth(label(toolName, args, cwd), 400);
 			// Finished rows are dim without a dot; running and failed ones keep it
 			const done = status(context) === "success";
 			const mark = done ? "  " : dot(theme, context);
@@ -674,9 +683,11 @@ export default function (pi: ExtensionAPI) {
 	pi.registerToolRenderer((toolName, next) => {
 		if (renderers[toolName] || !kindOf(toolName)) return renderers[toolName] ?? next();
 		const own = groupedTool(toolName);
-		if (kindOf(toolName) !== "mcp") return own;
-		// Expanded MCP results keep pi's own view, which shows images and limits long one-line JSON. It gets
-		// no lastComponent, since that may be the empty component drawn while the row was collapsed.
+		const kind = kindOf(toolName);
+		if (kind !== "mcp" && kind !== "code") return own;
+		// Expanded results keep pi's own view, which shows images, limits long one-line JSON, and lists
+		// codemode's inner calls with their cost and full output. It gets no lastComponent, since that may
+		// be the empty component drawn while the row was collapsed.
 		const pis = next()?.renderResult;
 		return {
 			...own,
