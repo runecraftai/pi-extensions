@@ -16,9 +16,9 @@ pi -e ./packages/pi-polish/extensions/tools.ts \
 
 ## Rendering
 
-- Consecutive shell commands, reads, searches, directory listings, tool searches,
-  and MCP calls fold into a summary. Live groups show the current command and
-  latest output. Click a finished group to expand it, or use `ctrl+o` to expand
+- Consecutive shell commands, code blocks, reads, searches, directory listings,
+  tool searches, and MCP calls fold into a summary. Live groups show the current
+  command and latest output. Click a finished group to expand it, or use `ctrl+o` to expand
   all tool output.
 - Edits and writes show colored diff bands, syntax highlighting, and changed-word
   highlights that follow your dark or light Pi theme.

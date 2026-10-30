@@ -225,6 +225,47 @@ test("tools still group calls and render highlighted edit/write diffs without re
   }
 });
 
+test("codemode calls fold into one compact row and expand to bounded full code", async (t) => {
+  const h = harness(t);
+  await h.emit("session_start");
+
+  const code = `\n${"const value = 1; // " + "x".repeat(70)}\n${Array.from({ length: 61 }, (_, i) => `const line${i} = ${i};`).join("\n")}`;
+  const args = { code };
+  const call = h.tool("codemode");
+  const context = { toolCallId: "code-one", invalidate() {}, executionStarted: true, isPartial: true, args };
+  const labelContext = { ...context, toolCallId: "code-label", executionStarted: false };
+  const labelRows = call.renderCall(args, theme, labelContext).render(100);
+  const firstLine = args.code.split("\n").map((line) => line.trim()).find(Boolean)!;
+  assert.equal(labelRows.length, 1);
+  assert.equal(stripTerminalSequences(labelRows[0]).trim(), `Codemode ${firstLine.slice(0, 60)}`);
+  assert.equal(stripTerminalSequences(labelRows[0]).includes("const line0"), false);
+  const emptyRows = call.renderCall({ code: " \n " }, theme, { toolCallId: "code-empty" }).render(100);
+  assert.equal(stripTerminalSequences(emptyRows[0]).trim(), "Codemode");
+
+  await h.emit("agent_start");
+  await h.emit("tool_execution_start", { toolName: "codemode", toolCallId: "code-one", args });
+  const running = call.renderCall(args, theme, context).render(100);
+  assert.equal(running.length, 1);
+  assert.equal(stripTerminalSequences(running[0]).includes("const value"), false);
+  await h.emit("tool_execution_end", { toolCallId: "code-one", isError: false });
+  const collapsed = call.renderCall(args, theme, context).render(100);
+  assert.equal(collapsed.length, 1);
+  assert.equal(stripTerminalSequences(collapsed[0]).trim(), "Ran 1 code block");
+
+  const expanded = call.renderCall(args, theme, { ...context, expanded: true }).render(120).map(stripTerminalSequences).join("\n");
+  assert.ok(expanded.includes(firstLine));
+  assert.ok(expanded.includes("const line58 = 58;"));
+  assert.ok(expanded.includes("... 2 more lines"));
+  assert.equal(expanded.includes("const line60 = 60;"), false);
+
+  const secondArgs = { code: "return 2;\nmore();" };
+  await h.emit("tool_execution_start", { toolName: "codemode", toolCallId: "code-two", args: secondArgs });
+  await h.emit("tool_execution_end", { toolCallId: "code-two", isError: false });
+  const grouped = call.renderCall(args, theme, context).render(100);
+  assert.equal(grouped.length, 1);
+  assert.equal(stripTerminalSequences(grouped[0]).trim(), "Ran 2 code blocks");
+});
+
 test("command helper shortens only cwd prefixes and preserves other commands", () => {
   assert.equal(shortCommand(`cd "${process.cwd()}" && npm test`, process.cwd()), "npm test");
   assert.equal(shortCommand("printf hello\nprintf goodbye", process.cwd()), "printf hello");
