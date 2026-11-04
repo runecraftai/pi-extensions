@@ -22,7 +22,7 @@ export default function (pi: ExtensionAPI) {
   let config: PiTuiConfig = loadConfig();
   let activeContext: ExtensionContext | undefined;
   let cleanupHeader: (() => void) | undefined;
-  let cleanupFooter: (() => void) | undefined;
+  let cleanupFooter: { cleanup: () => void; markDataFresh: () => void } | undefined;
   let cleanupEditor: (() => void) | undefined;
   let gitStatus: GitStatus = emptyGitStatus();
   let gitRefreshGeneration = 0;
@@ -42,6 +42,7 @@ export default function (pi: ExtensionAPI) {
     // A slower result from an earlier event must never replace newer state.
     if (generation !== gitRefreshGeneration) return;
     gitStatus = result;
+    cleanupFooter?.markDataFresh();
     requestRender?.();
   };
 
@@ -71,7 +72,7 @@ export default function (pi: ExtensionAPI) {
   };
 
   const uninstallFooter = () => {
-    cleanupFooter?.();
+    cleanupFooter?.cleanup();
     cleanupFooter = undefined;
     requestRender = undefined;
   };
