@@ -127,3 +127,13 @@ safety contract. The third resolves settings without the active model, observes
 `SETTINGS_CHANGED` and native fallback requests, and fails the ready-summary
 contract. None of these commands loads upstream code or accesses a paid
 provider.
+
+## Package surfaces
+
+`surfaces.test.mjs` uses the same Pi resolution and isolation to load
+`packages/pi-lane-router` and `packages/pi-decisions` from their package roots.
+`surfaces-fixture.ts` registers two in-process models, `strong` and `cheap`,
+with different nonzero usage, plus a fake `write` tool. The tests assert Pi's
+own session entries: lane switches, per-turn lane reports, router state, and
+the quota fallback, as well as the `ask_decisions` chat fallback and the operator
+refusal in RPC mode, where no terminal is available.

@@ -1,4 +1,6 @@
 node_modules.vite
 node_modules/
 packages/pi-async-compaction-lite/dist/
+packages/pi-decisions/dist/
+packages/pi-lane-router/dist/
 .pi-lifecycle-*/

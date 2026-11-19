@@ -1,0 +1,53 @@
+{
+  "name": "@runecraft/pi-lane-router",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A Pi virtual model that plans on a strong model, builds on a cheap one, and reports the lane, tokens, and cost of every turn.",
+  "type": "module",
+  "author": "Runecraft",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/runecraftai/pi-extensions.git",
+    "directory": "packages/pi-lane-router"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "tsc -p tsconfig.json --noUnusedLocals --noUnusedParameters",
+    "test": "node --experimental-transform-types --test test/*.test.ts"
+  },
+  "keywords": [
+    "pi-package",
+    "pi",
+    "router",
+    "virtual-model",
+    "cost"
+  ],
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "peerDependencies": {
+    "@earendil-works/pi-ai": ">=1.4.0",
+    "@earendil-works/pi-coding-agent": ">=1.4.0",
+    "@earendil-works/pi-tui": ">=1.4.0"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-ai": "1.4.0",
+    "@earendil-works/pi-coding-agent": "1.4.0",
+    "@earendil-works/pi-tui": "1.4.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
