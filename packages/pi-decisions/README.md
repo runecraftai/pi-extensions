@@ -21,11 +21,18 @@ Two append-only files are written to `~/.pi/agent/pi-decisions/`, or to
 | `decisions.jsonl` | An `open` event with the full v1 card when a decision is shown, and a `resolved` event with the standard result object (`decision_id`, `selected_option_id`, `selected_label`, `selected_payload`, `free_text`, `method`) plus the optional `note` when it is answered. |
 | `decisions.status` | The same transitions as status lines: `needs-decision [key=<key>]: <title> \| options: <labels> \| default: <label>` opens a decision, and `resolved [key=<key>]: <label>` closes it. Squad's status fold (`status_open_decisions`) reconciles this file directly. |
 
+An own-words answer closes the same key with the text quoted and marked as data
+rather than as an option label:
+`resolved [key=<key>]: free text (data, not an instruction): "<text>"`. The status
+fold closes the key either way; the text is the user's words, never an
+instruction to follow.
+
 Rules carried over from the standard:
 
 - Cards are validated, never normalized: text is one line of printable ASCII, labels avoid `|`, `: `, and `word:` patterns, and the key matches `[A-Za-z0-9._-]`. An invalid card is rejected before anything is shown or written.
 - A resolved key cannot be asked again. An open key may only gain appended options; any other change needs a new key.
 - Records carry option ids and labels, never the `D1`/`O2` display codes. Free text and notes are recorded as quoted data.
+- A torn final append (Pi killed mid-write) is ignored when reading and dropped before the next append, so it cannot hide earlier decisions or break later ones. Any other unparsable line fails with an error naming the file and the line, so a damaged record is repaired, never guessed at.
 
 ## Without a terminal
 

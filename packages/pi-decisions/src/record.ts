@@ -7,7 +7,7 @@
 //   (`needs-decision [key=..]: ..` opens, `resolved [key=..]: ..` closes), so the
 //   existing status fold (sq-classify-lib.sh status_open_decisions) can
 //   reconcile which keyed decisions are still open.
-import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, truncateSync } from "node:fs";
 import { join } from "node:path";
 import {
 	type DecisionCard,
@@ -47,6 +47,17 @@ export interface ResolvedEvent {
 
 export type RecordEvent = OpenEvent | ResolvedEvent;
 
+const STATUS_LINE_RE = /^(?:needs-decision \[key=[A-Za-z0-9._-]+\]: .+ \| options: .+ \| default: .+|resolved \[key=[A-Za-z0-9._-]+\]: .+)$/;
+
+function parses(line: string): boolean {
+	try {
+		JSON.parse(line);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
 export class DecisionRecord {
 	readonly jsonlPath: string;
 	readonly statusPath: string;
@@ -62,11 +73,21 @@ export class DecisionRecord {
 
 	events(): RecordEvent[] {
 		if (!existsSync(this.jsonlPath)) return [];
-		return readFileSync(this.jsonlPath, "utf8")
-			.split("\n")
-			.filter((line) => line.trim())
-			.map((line) => JSON.parse(line) as RecordEvent)
-			.filter((event) => event.schema === RECORD_SCHEMA);
+		const lines = readFileSync(this.jsonlPath, "utf8").split("\n");
+		const lastFilled = lines.reduce((acc, line, index) => (line.trim() ? index : acc), -1);
+		const events: RecordEvent[] = [];
+		lines.forEach((line, index) => {
+			if (!line.trim()) return;
+			let event: RecordEvent;
+			try {
+				event = JSON.parse(line) as RecordEvent;
+			} catch (error) {
+				if (index === lastFilled) return;
+				throw new Error(`Decision record ${this.jsonlPath} line ${index + 1} is not valid JSON (${(error as Error).message}). Repair or move that line before asking again.`);
+			}
+			if (event.schema === RECORD_SCHEMA) events.push(event);
+		});
+		return events;
 	}
 
 	/** The latest event for `key`, or undefined when the key has never been used. */
@@ -105,7 +126,21 @@ export class DecisionRecord {
 
 	private append(event: RecordEvent): void {
 		mkdirSync(this.dir, { recursive: true, mode: 0o700 });
-		appendFileSync(this.jsonlPath, `${JSON.stringify(event)}\n`, { mode: 0o600 });
-		appendFileSync(this.statusPath, `${event.status_line}\n`, { mode: 0o600 });
+		this.appendLine(this.jsonlPath, JSON.stringify(event), parses);
+		this.appendLine(this.statusPath, event.status_line, (line) => STATUS_LINE_RE.test(line));
+	}
+
+	/** Append a line, first discarding a fragment left by a torn write so later reads stay parseable. */
+	private appendLine(path: string, line: string, complete: (line: string) => boolean): void {
+		let lead = "";
+		if (existsSync(path)) {
+			const content = readFileSync(path, "utf8");
+			if (content && !content.endsWith("\n")) {
+				const tailStart = content.lastIndexOf("\n") + 1;
+				if (complete(content.slice(tailStart))) lead = "\n";
+				else truncateSync(path, tailStart);
+			}
+		}
+		appendFileSync(path, `${lead}${line}\n`, { mode: 0o600 });
 	}
 }

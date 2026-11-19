@@ -1,7 +1,7 @@
 // The tool end to end: dialog keystrokes in, durable record out.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { appendFileSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, test } from "node:test";
@@ -116,6 +116,11 @@ test("several decisions, own words, and a note travel into the record", async ()
 	assert.match(first, /Combine into one clean commit on main/);
 	assert.match(first, /O0 - Your own words/);
 	assert.match(c.frames.at(-2)!, /Review and submit/);
+	// The free-text close carries its own key and travels as quoted data.
+	assert.deepEqual(readFileSync(new DecisionRecord(dir).statusPath, "utf8").trimEnd().split("\n").slice(-2), [
+		"resolved [key=merge-strategy]: Squash & Merge",
+		'resolved [key=dashboard-scope]: free text (data, not an instruction): "ship it Friday"',
+	]);
 });
 
 test("invalid free text is refused in the dialog and nothing is recorded until it is fixed", async () => {
@@ -176,6 +181,37 @@ test("invalid cards are rejected before anything is shown or written", async () 
 	assert.equal(existsSync(join(dir, "decisions.jsonl")), false);
 });
 
+test("a torn final append is skipped and the record stays usable", async () => {
+	const dir = recordDir();
+	await runDecisions({ decisions: [merge] }, ctx([KEY.esc]), { recordDir: dir, now });
+	appendFileSync(join(dir, "decisions.jsonl"), '{"schema":"runecraft.pi-decisions/v1","event":"open","key":"merge-strat');
+	appendFileSync(join(dir, "decisions.status"), "resolved [key=merge-strategy]: Reb");
+	const record = new DecisionRecord(dir);
+	assert.deepEqual(record.events().map((e) => e.event), ["open"]);
+	assert.equal(record.latest("merge-strategy")?.event, "open");
+	// The tool reads the earlier decision (so the open key may still gain options) and answers it.
+	const appended = { ...merge, options: [...merge.options, { id: "later", label: "Decide Later", description: "Leave the PR open" }] };
+	const result = await runDecisions({ decisions: [appended] }, ctx(["4", KEY.enter]), { recordDir: dir, now });
+	assert.equal((result.details as { status: string }).status, "answered");
+	assert.deepEqual(new DecisionRecord(dir).events().map((e) => e.event), ["open", "open", "resolved"]);
+	assert.deepEqual(readFileSync(new DecisionRecord(dir).statusPath, "utf8").trimEnd().split("\n").slice(-1), [
+		"resolved [key=merge-strategy]: Decide Later",
+	]);
+});
+
+test("a corrupt line before the end fails with the file and line number", async () => {
+	const dir = recordDir();
+	await runDecisions({ decisions: [merge] }, ctx([KEY.esc]), { recordDir: dir, now });
+	const file = join(dir, "decisions.jsonl");
+	const content = readFileSync(file, "utf8");
+	writeFileSync(file, `not a record\n${content}`);
+	const failed = (error: Error) => error.message.includes(file) && error.message.includes("line 1") && error.message.includes("not valid JSON");
+	assert.throws(() => new DecisionRecord(dir).events(), failed);
+	assert.throws(() => new DecisionRecord(dir).latest("merge-strategy"), failed);
+	// The tool surfaces the same actionable error instead of hiding the damaged record.
+	await assert.rejects(runDecisions({ decisions: [merge] }, ctx([KEY.esc]), { recordDir: dir, now }), failed);
+});
+
 // Cross-check against Squad's own tooling when it is installed next to this checkout.
 const squad = process.env.SQUAD_ROOT ?? join(process.env.HOME ?? "", "Projects", "squad");
 const hasSquad = existsSync(join(squad, "bin", "sq-ask.sh")) && existsSync(join(squad, "bin", "sq-classify-lib.sh"));
@@ -195,4 +231,20 @@ test("Squad's sq-ask.sh and status fold accept the record", { skip: hasSquad ? f
 	const openOnly = join(dir, "open-only.status");
 	execFileSync("bash", ["-c", `head -n 1 "$1" > "$2"`, "head", record.statusPath, openOnly]);
 	assert.match(fold(openOnly), /^merge-strategy\tneeds-decision\tMerge Strategy \| options: /);
+});
+
+test("Squad's sq-ask.sh and status fold accept the free-text close variant", { skip: hasSquad ? false : `Squad not found at ${squad}` }, async () => {
+	const dir = recordDir();
+	await runDecisions({ decisions: [scope] }, ctx(["0", ..."ship it Friday", KEY.enter, KEY.enter]), { recordDir: dir, now });
+	const [open, resolved] = new DecisionRecord(dir).events();
+	assert.ok(open.event === "open" && resolved.event === "resolved");
+	assert.equal(resolved.result.free_text, "ship it Friday");
+	const sqAsk = (args: string[]) => execFileSync(join(squad, "bin", "sq-ask.sh"), args, { input: JSON.stringify(open.card), encoding: "utf8" });
+	// The same own-words answer typed as prose resolves to the same result; only the method differs.
+	assert.deepEqual({ ...JSON.parse(sqAsk(["--answer", 'd1 o0 "ship it Friday"'])), method: "free_text" }, resolved.result);
+	// With another decision left open, the fold closes only the free-text key.
+	await runDecisions({ decisions: [merge] }, ctx([KEY.esc]), { recordDir: dir, now });
+	const folded = execFileSync("bash", ["-c", `. "$1"; status_open_decisions "$2"`, "fold", join(squad, "bin", "sq-classify-lib.sh"), new DecisionRecord(dir).statusPath], { encoding: "utf8" });
+	assert.match(folded, /^merge-strategy\tneeds-decision\tMerge Strategy \| options: /);
+	assert.doesNotMatch(folded, /dashboard-scope/);
 });
