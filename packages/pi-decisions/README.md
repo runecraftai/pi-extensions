@@ -32,7 +32,7 @@ Rules carried over from the standard:
 - Cards are validated, never normalized: text is one line of printable ASCII, labels avoid `|`, `: `, and `word:` patterns, and the key matches `[A-Za-z0-9._-]`. An invalid card is rejected before anything is shown or written.
 - A resolved key cannot be asked again. An open key may only gain appended options; any other change needs a new key.
 - Records carry option ids and labels, never the `D1`/`O2` display codes. Free text and notes are recorded as quoted data.
-- A torn final append (Pi killed mid-write) is ignored when reading and dropped before the next append, so it cannot hide earlier decisions or break later ones. Any other unparsable line fails with an error naming the file and the line, so a damaged record is repaired, never guessed at.
+- A torn final append (Pi killed mid-write, so the last line has no newline) is ignored when reading and dropped before the next append, so it cannot hide earlier decisions or leave a truncated `resolved` label standing as the answer. Any newline-terminated unparsable line fails with an error naming the file and the line, so a damaged record is repaired, never guessed at.
 
 ## Without a terminal
 

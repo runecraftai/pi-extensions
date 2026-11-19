@@ -5,7 +5,7 @@ import { appendFileSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFil
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, test } from "node:test";
-import { renderProse } from "../src/card.ts";
+import { type DecisionResult, renderProse } from "../src/card.ts";
 import { runDecisions, toCard } from "../src/index.ts";
 import { DecisionRecord } from "../src/record.ts";
 
@@ -181,10 +181,12 @@ test("invalid cards are rejected before anything is shown or written", async () 
 	assert.equal(existsSync(join(dir, "decisions.jsonl")), false);
 });
 
-test("a torn final append is skipped and the record stays usable", async () => {
+test("a torn final append is dropped and the record stays usable", async () => {
 	const dir = recordDir();
 	await runDecisions({ decisions: [merge] }, ctx([KEY.esc]), { recordDir: dir, now });
+	const firstLine = readFileSync(join(dir, "decisions.status"), "utf8").trimEnd().split("\n");
 	appendFileSync(join(dir, "decisions.jsonl"), '{"schema":"runecraft.pi-decisions/v1","event":"open","key":"merge-strat');
+	// A torn resolved line (grammar-valid prefix, wrong label) must be dropped, not kept.
 	appendFileSync(join(dir, "decisions.status"), "resolved [key=merge-strategy]: Reb");
 	const record = new DecisionRecord(dir);
 	assert.deepEqual(record.events().map((e) => e.event), ["open"]);
@@ -193,9 +195,41 @@ test("a torn final append is skipped and the record stays usable", async () => {
 	const appended = { ...merge, options: [...merge.options, { id: "later", label: "Decide Later", description: "Leave the PR open" }] };
 	const result = await runDecisions({ decisions: [appended] }, ctx(["4", KEY.enter]), { recordDir: dir, now });
 	assert.equal((result.details as { status: string }).status, "answered");
-	assert.deepEqual(new DecisionRecord(dir).events().map((e) => e.event), ["open", "open", "resolved"]);
-	assert.deepEqual(readFileSync(new DecisionRecord(dir).statusPath, "utf8").trimEnd().split("\n").slice(-1), [
+	const after = new DecisionRecord(dir);
+	assert.deepEqual(after.events().map((e) => e.event), ["open", "open", "resolved"]);
+	// The whole status file carries only real transitions, so no truncated label is visible to the fold.
+	assert.deepEqual(readFileSync(after.statusPath, "utf8").split("\n"), [
+		...firstLine,
+		"needs-decision [key=merge-strategy]: Merge Strategy | options: Squash & Merge|Rebase & Merge|Create Merge Commit|Decide Later | default: Squash & Merge",
 		"resolved [key=merge-strategy]: Decide Later",
+		"",
+	]);
+});
+
+test("a torn append after a non-ASCII record truncates on a byte boundary", async () => {
+	const dir = recordDir();
+	const record = new DecisionRecord(dir, now);
+	// The session path is recorded verbatim, so a record can contain multi-byte characters.
+	const session = { id: "session-1", file: "/sessions/séance-1.jsonl" };
+	record.open(toCard(merge), session);
+	appendFileSync(record.jsonlPath, '{"schema":"runecraft.pi-decisions/v1","event":"open","key":"tor');
+	assert.deepEqual(record.events().map((e) => e.event), ["open"]);
+	const result: DecisionResult = {
+		decision_id: "merge-strategy", selected_option_id: "squash", selected_label: "Squash & Merge",
+		selected_payload: null, free_text: null, method: "picker",
+	};
+	record.resolve(result, null, session);
+	const events = new DecisionRecord(dir).events();
+	assert.deepEqual(events.map((e) => e.event), ["open", "resolved"]);
+	assert.deepEqual(events[0].event === "open" && events[0].session, session);
+	assert.deepEqual(events[0].event === "open" && events[0].card, toCard(merge));
+	// Nothing was cut out of the earlier record: every persisted line is a whole event.
+	for (const line of readFileSync(record.jsonlPath, "utf8").trimEnd().split("\n")) {
+		assert.doesNotThrow(() => JSON.parse(line));
+	}
+	record.open(toCard(scope), session);
+	assert.deepEqual(readFileSync(record.jsonlPath, "utf8").trimEnd().split("\n").map((line) => JSON.parse(line).key), [
+		"merge-strategy", "merge-strategy", "dashboard-scope",
 	]);
 });
 
@@ -209,6 +243,18 @@ test("a corrupt line before the end fails with the file and line number", async 
 	assert.throws(() => new DecisionRecord(dir).events(), failed);
 	assert.throws(() => new DecisionRecord(dir).latest("merge-strategy"), failed);
 	// The tool surfaces the same actionable error instead of hiding the damaged record.
+	await assert.rejects(runDecisions({ decisions: [merge] }, ctx([KEY.esc]), { recordDir: dir, now }), failed);
+});
+
+test("a newline-terminated corrupt final line fails instead of being skipped", async () => {
+	const dir = recordDir();
+	await runDecisions({ decisions: [merge] }, ctx([KEY.esc]), { recordDir: dir, now });
+	const file = join(dir, "decisions.jsonl");
+	// Not torn: the bad line ends with a newline, so it is damage and must be reported.
+	appendFileSync(file, "not a record\n");
+	const failed = (error: Error) => error.message.includes(file) && error.message.includes("line 2") && error.message.includes("not valid JSON");
+	assert.throws(() => new DecisionRecord(dir).events(), failed);
+	assert.throws(() => new DecisionRecord(dir).latest("merge-strategy"), failed);
 	await assert.rejects(runDecisions({ decisions: [merge] }, ctx([KEY.esc]), { recordDir: dir, now }), failed);
 });
 

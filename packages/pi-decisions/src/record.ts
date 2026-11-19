@@ -47,8 +47,6 @@ export interface ResolvedEvent {
 
 export type RecordEvent = OpenEvent | ResolvedEvent;
 
-const STATUS_LINE_RE = /^(?:needs-decision \[key=[A-Za-z0-9._-]+\]: .+ \| options: .+ \| default: .+|resolved \[key=[A-Za-z0-9._-]+\]: .+)$/;
-
 function parses(line: string): boolean {
 	try {
 		JSON.parse(line);
@@ -73,8 +71,11 @@ export class DecisionRecord {
 
 	events(): RecordEvent[] {
 		if (!existsSync(this.jsonlPath)) return [];
-		const lines = readFileSync(this.jsonlPath, "utf8").split("\n");
-		const lastFilled = lines.reduce((acc, line, index) => (line.trim() ? index : acc), -1);
+		const raw = readFileSync(this.jsonlPath, "utf8");
+		const lines = raw.split("\n");
+		// Only an unterminated final line can be a torn append: every record this writer
+		// emits ends with a newline, so a newline-terminated bad line is damage, not a fragment.
+		const tornLast = !raw.endsWith("\n");
 		const events: RecordEvent[] = [];
 		lines.forEach((line, index) => {
 			if (!line.trim()) return;
@@ -82,7 +83,7 @@ export class DecisionRecord {
 			try {
 				event = JSON.parse(line) as RecordEvent;
 			} catch (error) {
-				if (index === lastFilled) return;
+				if (tornLast && index === lines.length - 1) return;
 				throw new Error(`Decision record ${this.jsonlPath} line ${index + 1} is not valid JSON (${(error as Error).message}). Repair or move that line before asking again.`);
 			}
 			if (event.schema === RECORD_SCHEMA) events.push(event);
@@ -127,20 +128,25 @@ export class DecisionRecord {
 	private append(event: RecordEvent): void {
 		mkdirSync(this.dir, { recursive: true, mode: 0o700 });
 		this.appendLine(this.jsonlPath, JSON.stringify(event), parses);
-		this.appendLine(this.statusPath, event.status_line, (line) => STATUS_LINE_RE.test(line));
+		this.appendLine(this.statusPath, event.status_line);
 	}
 
-	/** Append a line, first discarding a fragment left by a torn write so later reads stay parseable. */
-	private appendLine(path: string, line: string, complete: (line: string) => boolean): void {
-		let lead = "";
+	/**
+	 * Append a line, first discarding a fragment left by a torn write so later reads stay parseable.
+	 * `intact` recognizes a tail that is a whole record missing only its newline; without a
+	 * predicate a tail is always treated as torn (a status line's grammar is prefix-closed, so
+	 * a truncated `resolved [key=..]: <partial label>` looks complete and must never be kept).
+	 */
+	private appendLine(path: string, line: string, intact: (tail: string) => boolean = () => false): void {
 		if (existsSync(path)) {
-			const content = readFileSync(path, "utf8");
-			if (content && !content.endsWith("\n")) {
-				const tailStart = content.lastIndexOf("\n") + 1;
-				if (complete(content.slice(tailStart))) lead = "\n";
+			// Byte offset: fs.truncate takes bytes, not the code units of a decoded string.
+			const content = readFileSync(path);
+			const tailStart = content.lastIndexOf(0x0a) + 1;
+			if (content.length > tailStart) {
+				if (intact(content.subarray(tailStart).toString("utf8"))) appendFileSync(path, "\n", { mode: 0o600 });
 				else truncateSync(path, tailStart);
 			}
 		}
-		appendFileSync(path, `${lead}${line}\n`, { mode: 0o600 });
+		appendFileSync(path, `${line}\n`, { mode: 0o600 });
 	}
 }
