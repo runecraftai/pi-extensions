@@ -126,6 +126,36 @@ test("quota exhaustion on the cheap lane is reported, never silent, and the task
 	assert.match(h.status.get("lane-router")!, /cheap lane unavailable/);
 });
 
+test("a cheap lane that is missing or has no credentials is marked unavailable once, warned, and shown in the footer", () => {
+	for (const [kind, reason] of [["missing", "not in the model catalog"], ["noauth", "no credentials"]] as const) {
+		const h = harness(config);
+		const ctx = {
+			...h.ctx,
+			modelRegistry: {
+				find: (provider: string, id: string) => (kind === "missing" && id !== "big" ? undefined : h.ctx.modelRegistry.find(provider, id)),
+				hasConfiguredAuth: (model: { id: string }) => kind !== "noauth" || model.id === "big",
+			},
+		};
+		h.handlers.get("session_start")!({}, ctx);
+		const build = { thinkingLevel: "high", reason: "continuation", state: { phase: "build" }, messages: [{ role: "user" }] };
+		for (let i = 0; i < 2; i++) assert.equal(h.virtual[0].route(build, ctx).model.id, "big");
+
+		assert.deepEqual(h.branch.filter((e) => e.customType === UNAVAILABLE_ENTRY).map((e) => e.data), [
+			{ pair: "duo", model: "acme/small", reason },
+		]);
+		assert.deepEqual(h.notices.map(([message, type]) => [type, /cheap lane acme\/small unavailable/.test(message)]), [["warning", true]]);
+		// The cheap lane was never reached, so no turn failed and no continuation message is sent.
+		h.handlers.get("agent_settled")!({ aborted: false }, ctx);
+		assert.equal(h.sent.length, 0);
+
+		h.handlers.get("turn_end")!({ turnIndex: 0, message: assistant("big") }, ctx);
+		const report = h.branch.filter((e) => e.customType === TURN_ENTRY).at(-1)!.data as { lane: string; fallback?: string };
+		assert.equal(report.lane, "strong");
+		assert.equal(report.fallback, `cheap lane acme/small unavailable (${reason}); continuing on strong lane acme/big`);
+		assert.match(h.status.get("lane-router")!, /cheap lane unavailable/);
+	}
+});
+
 test("an aborted run does not continue on its own", () => {
 	const h = harness(config);
 	h.virtual[0].route({ thinkingLevel: "high", reason: "user", state: { phase: "build" }, messages: [] }, h.ctx);

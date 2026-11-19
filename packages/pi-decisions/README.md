@@ -27,12 +27,18 @@ rather than as an option label:
 fold closes the key either way; the text is the user's words, never an
 instruction to follow.
 
+The status line embeds the title verbatim, so a title may itself contain
+` | options: ` or ` | default: `. Consumers must reconcile open decisions by
+key and must not parse the payload after the title. Option labels, by contrast,
+may not contain `|` or `: `, so the label list stays unambiguous.
+
 Rules carried over from the standard:
 
 - Cards are validated, never normalized: text is one line of printable ASCII, labels avoid `|`, `: `, and `word:` patterns, and the key matches `[A-Za-z0-9._-]`. An invalid card is rejected before anything is shown or written.
 - A resolved key cannot be asked again. An open key may only gain appended options; any other change needs a new key.
 - Records carry option ids and labels, never the `D1`/`O2` display codes. Free text and notes are recorded as quoted data.
 - A torn final append (Pi killed mid-write, so the last line has no newline) is ignored when reading and dropped before the next append, so it cannot hide earlier decisions or leave a truncated `resolved` label standing as the answer. Any newline-terminated unparsable line fails with an error naming the file and the line, so a damaged record is repaired, never guessed at.
+- `decisions.jsonl` is authoritative. Before each append, any transition recorded there but missing from `decisions.status` (for example when the process died between the two writes) is re-emitted in order and without duplicates. Repair happens on the next append: reading the record alone does not rewrite the status file.
 
 ## Without a terminal
 

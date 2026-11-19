@@ -34,9 +34,9 @@ The router never switches lanes silently. If the cheap model is missing from
 the catalog, has no credentials, fails a request that Pi retries, or ends a
 turn with an error such as quota exhaustion:
 
-1. A `lane-router.unavailable` entry records the reason, and a warning is shown.
-2. After a failed turn, a visible `lane-router.fallback` message tells the model the cheap lane is unavailable, and the task continues on the strong lane.
-3. Every turn that the strong lane serves in its place includes a `fallback` field with the reason.
+1. A `lane-router.unavailable` entry records the reason once per pair and reason, and a warning is shown.
+2. Every turn that the strong lane serves in its place includes a `fallback` field with the reason.
+3. Only a turn that actually failed triggers a visible `lane-router.fallback` message, which tells the model the cheap lane is unavailable and continues the task on the strong lane.
 
 `/lane-router reset` marks the cheap lane available again. If the strong lane
 is missing or has no credentials, the request fails with an error that names it.

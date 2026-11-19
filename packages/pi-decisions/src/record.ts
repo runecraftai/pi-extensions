@@ -127,8 +127,34 @@ export class DecisionRecord {
 
 	private append(event: RecordEvent): void {
 		mkdirSync(this.dir, { recursive: true, mode: 0o700 });
+		this.repairStatus(this.events());
 		this.appendLine(this.jsonlPath, JSON.stringify(event), parses);
 		this.appendLine(this.statusPath, event.status_line);
+	}
+
+	/** Status lines already persisted, with a torn final fragment discarded. */
+	private statusLines(): string[] {
+		if (!existsSync(this.statusPath)) return [];
+		const content = readFileSync(this.statusPath);
+		const head = content.subarray(0, content.lastIndexOf(0x0a) + 1).toString("utf8");
+		return head ? head.slice(0, -1).split("\n") : [];
+	}
+
+	/**
+	 * `decisions.jsonl` is authoritative. Re-emit the transitions the status file is missing,
+	 * in event order and once each, so a crash between the two writes is repaired by the next
+	 * append. Reading the record never rewrites the status file.
+	 */
+	private repairStatus(events: readonly RecordEvent[]): void {
+		const lines = this.statusLines();
+		let cursor = 0;
+		for (const event of events) {
+			if (lines[cursor] === event.status_line) {
+				cursor++;
+				continue;
+			}
+			this.appendLine(this.statusPath, event.status_line);
+		}
 	}
 
 	/**

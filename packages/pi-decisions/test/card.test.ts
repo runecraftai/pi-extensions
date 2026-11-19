@@ -25,6 +25,14 @@ for (const name of ["merge", "scope"]) {
 	});
 }
 
+test("several decisions render one block each, separated by a blank line and numbered in order", () => {
+	const first = fixture("merge.prose").trimEnd();
+	const second = fixture("scope.prose").trimEnd().replace(/^D1 - /, "D2 - ");
+	const prose = renderProse([card("merge"), card("scope")]);
+	assert.equal(prose, `${first}\n\n${second}`);
+	assert.deepEqual(prose.split("\n\n"), [first, second]);
+});
+
 test("result objects match the standard's shape for an option and for free text", () => {
 	assert.deepEqual(resultFor(card("merge"), 2, null, "picker"), {
 		decision_id: "merge-strategy", selected_option_id: "rebase", selected_label: "Rebase & Merge",

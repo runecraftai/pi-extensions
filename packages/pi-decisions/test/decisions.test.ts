@@ -5,9 +5,9 @@ import { appendFileSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFil
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, test } from "node:test";
-import { type DecisionResult, renderProse } from "../src/card.ts";
+import { type DecisionResult, renderProse, resolvedStatusLine } from "../src/card.ts";
 import { runDecisions, toCard } from "../src/index.ts";
-import { DecisionRecord } from "../src/record.ts";
+import { DecisionRecord, RECORD_SCHEMA } from "../src/record.ts";
 
 const KEY = { enter: "\r", down: "\x1b[B", tab: "\t", esc: "\x1b", backspace: "\x7f" };
 const theme = { fg: (_c: string, s: string) => s, bg: (_c: string, s: string) => s, bold: (s: string) => s };
@@ -233,6 +233,38 @@ test("a torn append after a non-ASCII record truncates on a byte boundary", asyn
 	]);
 });
 
+test("a crash between the record and status writes is repaired on the next append", () => {
+	const dir = recordDir();
+	const record = new DecisionRecord(dir, now);
+	const session = { id: "session-1", file: "/sessions/session-1.jsonl" };
+	const opened = record.open(toCard(merge), session);
+	const result: DecisionResult = {
+		decision_id: "merge-strategy", selected_option_id: "rebase", selected_label: "Rebase & Merge",
+		selected_payload: null, free_text: null, method: "picker",
+	};
+	// The process wrote the resolved event, then died before the status write.
+	const killed = {
+		schema: RECORD_SCHEMA, event: "resolved" as const, key: result.decision_id, at: "2026-01-02T03:04:05.000Z",
+		session, result, note: null, status_line: resolvedStatusLine(result),
+	};
+	appendFileSync(record.jsonlPath, `${JSON.stringify(killed)}\n`);
+	const stale = readFileSync(record.statusPath, "utf8");
+	assert.deepEqual(stale.trimEnd().split("\n"), [opened.status_line]);
+	// Reading the authoritative record neither hides the answer nor repairs the status file.
+	assert.deepEqual(new DecisionRecord(dir).events().map((e) => e.status_line), [opened.status_line, killed.status_line]);
+	assert.equal(readFileSync(record.statusPath, "utf8"), stale);
+	// The next append re-emits the missing transition before its own line, once.
+	const scopeOpen = record.open(toCard(scope), session);
+	assert.deepEqual(readFileSync(record.statusPath, "utf8").split("\n"), [
+		opened.status_line, killed.status_line, scopeOpen.status_line, "",
+	]);
+	// A later append does not re-emit lines the status file already has.
+	const again = record.open(toCard(merge), session);
+	const statusLines = readFileSync(record.statusPath, "utf8").trimEnd().split("\n");
+	assert.deepEqual(statusLines, [opened.status_line, killed.status_line, scopeOpen.status_line, again.status_line]);
+	assert.deepEqual(statusLines, new DecisionRecord(dir).events().map((e) => e.status_line));
+});
+
 test("a corrupt line before the end fails with the file and line number", async () => {
 	const dir = recordDir();
 	await runDecisions({ decisions: [merge] }, ctx([KEY.esc]), { recordDir: dir, now });
@@ -277,6 +309,12 @@ test("Squad's sq-ask.sh and status fold accept the record", { skip: hasSquad ? f
 	const openOnly = join(dir, "open-only.status");
 	execFileSync("bash", ["-c", `head -n 1 "$1" > "$2"`, "head", record.statusPath, openOnly]);
 	assert.match(fold(openOnly), /^merge-strategy\tneeds-decision\tMerge Strategy \| options: /);
+});
+
+test("Squad's sq-ask.sh renders a two-card array with the same blank-line separator", { skip: hasSquad ? false : `Squad not found at ${squad}` }, () => {
+	const cards = [toCard(merge), toCard(scope)];
+	const rendered = execFileSync(join(squad, "bin", "sq-ask.sh"), ["--render"], { input: JSON.stringify(cards), encoding: "utf8" });
+	assert.equal(rendered.trimEnd(), renderProse(cards));
 });
 
 test("Squad's sq-ask.sh and status fold accept the free-text close variant", { skip: hasSquad ? false : `Squad not found at ${squad}` }, async () => {

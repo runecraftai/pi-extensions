@@ -56,11 +56,11 @@ test("switches to the cheap lane after the first successful edit or write, once"
 	assert.equal(editedThisTurn([user, wrote, user] as never), false);
 });
 
-test("an unavailable cheap lane is reported and the request continues on the strong lane", () => {
-	for (const [e, problem] of [
-		[env({ blocked: "insufficient_quota" }), "insufficient_quota"],
-		[env({ find: (ref) => (ref.id === "big" ? model(ref.provider, ref.id) : undefined) }), "not in the model catalog"],
-		[env({ hasAuth: (m) => (m as { id: string }).id === "big" }), "no credentials"],
+test("an unavailable cheap lane is reported, marked once, and the request continues on the strong lane", () => {
+	for (const [e, problem, marks] of [
+		[env({ blocked: "insufficient_quota" }), "insufficient_quota", false],
+		[env({ find: (ref) => (ref.id === "big" ? model(ref.provider, ref.id) : undefined) }), "not in the model catalog", true],
+		[env({ hasAuth: (m) => (m as { id: string }).id === "big" }), "no credentials", true],
 	] as const) {
 		const { route, decision } = routeLane(pair, request({ state: { phase: "build" } }), e);
 		assert.equal(route.model.id, "big");
@@ -68,6 +68,7 @@ test("an unavailable cheap lane is reported and the request continues on the str
 			pair: "duo", phase: "build", lane: "strong", model: "acme/big",
 			fallback: `cheap lane acme/small unavailable (${problem}); continuing on strong lane acme/big`,
 		});
+		assert.deepEqual(e.marked, marks ? [problem] : []);
 	}
 });
 

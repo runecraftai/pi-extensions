@@ -48,6 +48,17 @@ export function cheapBlockedOn(branch: readonly BranchEntry[], pair: string): st
 	return undefined;
 }
 
+/** Whether this pair and reason is already recorded since the lane was last marked available. */
+export function markedUnavailableOn(branch: readonly BranchEntry[], pair: string, reason: string): boolean {
+	for (let i = branch.length - 1; i >= 0; i--) {
+		const entry = branch[i];
+		if (entry.type !== "custom" || (entry.data as { pair?: string } | undefined)?.pair !== pair) continue;
+		if (entry.customType === AVAILABLE_ENTRY) return false;
+		if (entry.customType === UNAVAILABLE_ENTRY && (entry.data as UnavailableData).reason === reason) return true;
+	}
+	return false;
+}
+
 function turnReports(branch: readonly BranchEntry[], pair?: string): LaneTurnReport[] {
 	return branch
 		.filter((entry) => entry.type === "custom" && entry.customType === TURN_ENTRY)
@@ -87,7 +98,7 @@ export default function laneRouter(pi: ExtensionAPI, options: LaneRouterOptions 
 	}
 
 	function markCheapUnavailable(ctx: ExtensionContext, pair: LanePair, reason: string): void {
-		if (cheapBlockedOn(ctx.sessionManager.getBranch() as BranchEntry[], pair.id) === reason) return;
+		if (markedUnavailableOn(ctx.sessionManager.getBranch() as BranchEntry[], pair.id, reason)) return;
 		pi.appendEntry<UnavailableData>(UNAVAILABLE_ENTRY, { pair: pair.id, model: formatRef(pair.cheap), reason });
 		ctx.ui.notify(`lane-router: cheap lane ${formatRef(pair.cheap)} unavailable (${reason}); continuing on strong lane ${formatRef(pair.strong)}. Run /lane-router reset to try it again.`, "warning");
 	}

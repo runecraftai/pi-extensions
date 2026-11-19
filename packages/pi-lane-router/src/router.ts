@@ -8,8 +8,8 @@
 //
 // The cheap lane is never dropped silently: when it is missing, has no
 // credentials, or has been marked unavailable (for example after quota
-// exhaustion), the request goes to the strong lane and the decision carries the
-// reason so the turn report says so.
+// exhaustion), the lane is marked unavailable once, the request goes to the
+// strong lane, and the decision carries the reason so the turn report says so.
 import type { Api, AssistantMessage, Message, Model, ModelThinkingLevel } from "@earendil-works/pi-ai";
 import { type LanePair, type ModelRef, formatRef } from "./config.ts";
 
@@ -66,10 +66,10 @@ export function editedThisTurn(messages: readonly Message[]): boolean {
 		.some((message) => message.role === "toolResult" && EDIT_TOOLS.has(message.toolName) && !message.isError);
 }
 
-function cheapProblem(pair: LanePair, env: RouterEnv): { model?: Model<Api>; problem?: string } {
+function cheapProblem(pair: LanePair, env: RouterEnv): { model?: Model<Api>; problem?: string; mark?: boolean } {
 	const model = env.find(pair.cheap);
-	if (!model) return { problem: "not in the model catalog" };
-	if (!env.hasAuth(model)) return { problem: "no credentials" };
+	if (!model) return { problem: "not in the model catalog", mark: true };
+	if (!env.hasAuth(model)) return { problem: "no credentials", mark: true };
 	const blocked = env.cheapBlocked(pair.id);
 	if (blocked) return { problem: blocked };
 	return { model };
@@ -102,7 +102,10 @@ export function routeLane(pair: LanePair, request: RouteRequestLike, env: Router
 	if (phase === "plan") return onStrong(phase, next);
 
 	const cheap = cheapProblem(pair, env);
-	if (!cheap.model) return onStrong(phase, next, fallbackNote(cheap.problem!));
+	if (!cheap.model) {
+		if (cheap.mark) env.markCheapUnavailable(pair.id, cheap.problem!);
+		return onStrong(phase, next, fallbackNote(cheap.problem!));
+	}
 	return {
 		route: { model: cheap.model, thinkingLevel: request.thinkingLevel, state: next },
 		decision: { pair: pair.id, phase, lane: "cheap", model: formatRef(pair.cheap) },
