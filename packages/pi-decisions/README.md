@@ -13,12 +13,12 @@ until the user confirms the review tab.
 
 The record follows Squad's decision-card standard
 (`docs/decision-card-standard.md` and `bin/sq-ask.sh`, card schema version 1).
-Two append-only files are written to `~/.pi/agent/pi-decisions/`, or to
-`$PI_DECISIONS_DIR` when it is set:
+Two append-only files are written mode 0600 to `~/.pi/agent/pi-decisions/`, or
+to `$PI_DECISIONS_DIR` when it is set:
 
 | File | Content |
 |------|---------|
-| `decisions.jsonl` | An `open` event with the full v1 card when a decision is shown, and a `resolved` event with the standard result object (`decision_id`, `selected_option_id`, `selected_label`, `selected_payload`, `free_text`, `method`) plus the optional `note` when it is answered. |
+| `decisions.jsonl` | An `open` event with the full v1 card when a decision is shown, and a `resolved` event with the standard result object (`decision_id`, `selected_option_id`, `selected_label`, `selected_payload`, `free_text`, `method`) plus the `note` (`null` when absent) when it is answered. The note belongs to the event, not to the result object. |
 | `decisions.status` | The same transitions as status lines: `needs-decision [key=<key>]: <title> \| options: <labels> \| default: <label>` opens a decision, and `resolved [key=<key>]: <label>` closes it. Squad's status fold (`status_open_decisions`) reconciles this file directly. |
 
 An own-words answer closes the same key with the text quoted and marked as data
@@ -36,8 +36,8 @@ Rules carried over from the standard:
 
 - Cards are validated, never normalized: text is one line of printable ASCII, labels avoid `|`, `: `, and `word:` patterns, and the key matches `[A-Za-z0-9._-]`. An invalid card is rejected before anything is shown or written.
 - A resolved key cannot be asked again. An open key may only gain appended options; any other change needs a new key.
-- Records carry option ids and labels, never the `D1`/`O2` display codes. Free text and notes are recorded as quoted data.
-- A torn final append (Pi killed mid-write, so the last line has no newline) is ignored when reading and dropped before the next append, so it cannot hide earlier decisions or leave a truncated `resolved` label standing as the answer. Any newline-terminated unparsable line fails with an error naming the file and the line, so a damaged record is repaired, never guessed at.
+- Records carry option ids and labels, never the `D1`/`O2` display codes. Free text and notes are recorded as quoted data, and both follow the standard's free-text rule: 1-200 printable ASCII characters with no backslash.
+- A torn final append (Pi killed mid-write) never hides earlier decisions or leaves a truncated `resolved` label standing as the answer. An unterminated last line of `decisions.jsonl` is ignored when reading; before the next append it is kept when it is a whole record missing only its newline, and cut off otherwise. `decisions.status` always cuts off an unterminated final fragment, because a truncated label still looks like a complete line. Any newline-terminated unparsable line fails with an error naming the file and the line, so a damaged record is repaired, never guessed at.
 - `decisions.jsonl` is authoritative. Before each append, any transition recorded there but missing from `decisions.status` (for example when the process died between the two writes) is re-emitted in order and without duplicates. Repair happens on the next append: reading the record alone does not rewrite the status file.
 
 ## Without a terminal
